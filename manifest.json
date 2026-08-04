@@ -1,7 +1,7 @@
 {
   "name": "Diario de Entrenamiento",
   "short_name": "Diario Gym",
-  "description": "Registro de pesas, peso corporal, medidas y natacion del plan de recomposicion de 26 semanas",
+  "description": "Registro de entrenamiento de fuerza con esfuerzo percibido, peso corporal, medidas y alimentacion",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

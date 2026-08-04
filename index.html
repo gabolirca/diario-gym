@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Diario de Entrenamiento · Gabo</title>
+<title>Diario de Entrenamiento</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -189,7 +189,7 @@ button.btn.sm{min-height:34px}
     <div class="obnum">Paso 2 de 6</div>
     <h1>¿Cómo te llamas?</h1>
     <p class="lead">Solo para que la app te salude por tu nombre. En cualquier publicación los datos van anonimizados.</p>
-    <div class="row"><div><label>Nombre o apodo</label><input type="text" id="obNombre" placeholder="Gabo" autocomplete="given-name"></div></div>
+    <div class="row"><div><label>Nombre o apodo</label><input type="text" id="obNombre" placeholder="Tu nombre" autocomplete="given-name"></div></div>
     <div class="row r2">
       <div><label>Sexo</label><select id="obSexo"><option value="M">Hombre</option><option value="F">Mujer</option></select></div>
       <div><label>Fecha de nacimiento</label><input type="date" id="obNac"></div>
@@ -304,8 +304,8 @@ button.btn.sm{min-height:34px}
   <div class="kpis">
     <div class="kpi"><div class="l">Promedio 7 días</div><div class="v" id="kAvg">—</div><div class="d" id="kAvgD">Sin datos</div></div>
     <div class="kpi"><div class="l">Objetivo esta semana</div><div class="v" id="kTgt">—</div><div class="d" id="kTgtD">—</div></div>
-    <div class="kpi"><div class="l">Cintura</div><div class="v" id="kCin">—</div><div class="d" id="kCinD">Meta: 82 cm</div></div>
-    <div class="kpi"><div class="l">Grasa estimada</div><div class="v" id="kBf">—</div><div class="d" id="kBfD">Meta: 15%</div></div>
+    <div class="kpi"><div class="l">Cintura</div><div class="v" id="kCin">—</div><div class="d" id="kCinD">—</div></div>
+    <div class="kpi"><div class="l">Grasa estimada</div><div class="v" id="kBf">—</div><div class="d" id="kBfD">—</div></div>
   </div>
 
   <div class="card">
@@ -933,6 +933,10 @@ function render(){
     : (cinFin!=null ? 'Meta final: '+cinFin.toFixed(1)+' cm' : 'Registra cintura y cuello');
   const bf = m? bodyFat(m.cin,m.cue):null;
   document.getElementById('kBf').textContent = bf? bf.toFixed(1)+'%':'—';
+  // Rango de referencia por sexo, no una meta única para todos
+  document.getElementById('kBfD').textContent = bf
+    ? 'Rango saludable: ' + (D.cfg.sexo==='F' ? '18-26 %' : '10-18 %')
+    : 'Registra cintura y cuello';
 
   // Barras de avance, relativas al plan de cada quien
   const w0=+D.cfg.w0, wFin=PL[NS-1][0], rango=Math.abs(wFin-w0);
