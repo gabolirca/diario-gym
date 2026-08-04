@@ -1,0 +1,5 @@
+# Estado local del CLI de Supabase. No va al repo:
+# guarda a qué proyecto está enlazada TU máquina, no el proyecto en sí.
+.temp
+.branches
+.env

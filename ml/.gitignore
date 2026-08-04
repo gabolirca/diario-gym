@@ -1,0 +1,5 @@
+# Datos generados: se reproducen con `python generar_datos.py`
+datos_sinteticos.csv
+*.pkl
+__pycache__/
+.venv/

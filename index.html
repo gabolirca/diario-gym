@@ -81,11 +81,22 @@ tr:last-child td{border-bottom:none}
 .ex .eh b{font-size:14px} .ex .eh .tgt{color:var(--dim);font-size:12px;white-space:nowrap}
 .ex .last{padding:6px 13px;font-size:12px;color:var(--warn);background:rgba(232,163,61,.07)}
 .ex .sets{padding:10px 13px}
-.set{display:grid;grid-template-columns:26px 1fr 1fr 34px;gap:8px;align-items:center;margin-bottom:7px}
+.set{display:grid;grid-template-columns:26px 1fr 1fr .8fr 34px;gap:8px;align-items:center;margin-bottom:7px}
 .set span.n{color:var(--dim);font-size:12px;text-align:center}
 .set input{padding:11px 10px;font-size:16px}
+.set input.rir{background:rgba(78,207,168,.07);border-color:var(--acc2)}
 .set button{background:none;border:none;color:var(--dim);cursor:pointer;font-size:17px;padding:0}
 .set button:hover{color:var(--bad)}
+.setlbl{display:grid;grid-template-columns:26px 1fr 1fr .8fr 34px;gap:8px;margin-bottom:5px}
+.setlbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;text-align:center}
+.setlbl span.rir{color:var(--acc)}
+
+/* --- Cuenta y sincronización --- */
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+.sync i{width:8px;height:8px;border-radius:99px;background:var(--dim);display:inline-block}
+.sync.ok i{background:var(--good)} .sync.off i{background:var(--warn)} .sync.err i{background:var(--bad)}
+.authrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.authrow > div{flex:1;min-width:180px}
 
 .chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
 .c-ok{background:rgba(78,207,168,.15);color:var(--acc)}
@@ -118,7 +129,7 @@ button.btn.sm{min-height:34px}
   .card{padding:15px}
   .kpi .v{font-size:24px}
   nav button{padding:9px 13px;font-size:13.5px}
-  .set{grid-template-columns:22px 1fr 1fr 32px;gap:6px}
+  .set,.setlbl{grid-template-columns:22px 1fr 1fr .8fr 30px;gap:6px}
   th,td{padding:8px 6px;font-size:12.5px}
 }
 </style>
@@ -128,7 +139,8 @@ button.btn.sm{min-height:34px}
 
 <header>
   <h1>Diario de Entrenamiento</h1>
-  <div class="s">Gabo · Plan de recomposición 26 semanas · <span id="hdWeek">—</span></div>
+  <div class="s">Plan de recomposición 26 semanas · <span id="hdWeek">—</span></div>
+  <div class="s" style="margin-top:6px"><span class="sync off" id="syncBadge"><i></i><span id="syncTxt">Modo local</span></span></div>
 </header>
 
 <div id="iosHint">
@@ -142,6 +154,7 @@ button.btn.sm{min-height:34px}
   <button class="on" data-t="panel">Panel</button>
   <button data-t="pesas">Pesas</button>
   <button data-t="cuerpo">Peso y medidas</button>
+  <button data-t="comida">Comida</button>
   <button data-t="nado">Natación</button>
   <button data-t="prog">Progreso</button>
   <button data-t="datos">Datos</button>
@@ -198,8 +211,14 @@ button.btn.sm{min-height:34px}
       <div><label>Rutina</label><select id="wRoutine" onchange="renderExercises()"></select></div>
     </div>
     <div id="exList"></div>
+    <div class="row r2">
+      <div><label>Esfuerzo de la sesión (0-10)</label><input type="number" inputmode="decimal" step="0.5" min="0" max="10" id="wRpe" placeholder="7.5"></div>
+      <div><label>Duración (min)</label><input type="number" inputmode="numeric" id="wDur" placeholder="65"></div>
+    </div>
     <div class="row"><div><label>Notas (energía, dolor, cómo se sintió)</label><textarea id="wNotes" placeholder="Buena energía, banca subió 2.5 kg..."></textarea></div></div>
     <button class="btn" onclick="saveWorkout()">Guardar sesión</button>
+    <div class="note"><b>RIR = repeticiones en reserva:</b> cuántas te quedaban antes de fallar. 0 es fallo total, 2 es "podía dos más".
+    Es el campo más importante de la app — sin él no se puede saber si la carga fue la correcta, y no se puede reconstruir después de memoria.</div>
   </div>
 
   <div class="card">
@@ -248,6 +267,39 @@ button.btn.sm{min-height:34px}
   <div class="card">
     <h2>Historial corporal</h2>
     <div class="tw"><table id="bHist"></table></div>
+  </div>
+</div>
+
+<!-- ================= COMIDA ================= -->
+<div class="tab" id="t-comida">
+  <div class="kpis">
+    <div class="kpi"><div class="l">Kcal promedio 7 días</div><div class="v" id="nAvg">—</div><div class="d" id="nAvgD">Sin datos</div></div>
+    <div class="kpi"><div class="l">Balance vs. objetivo</div><div class="v" id="nBal">—</div><div class="d">Promedio 7 días</div></div>
+    <div class="kpi"><div class="l">Proteína por kg</div><div class="v" id="nProt">—</div><div class="d" id="nProtD">Mínimo: 1.8 g/kg</div></div>
+    <div class="kpi"><div class="l">Días registrados</div><div class="v" id="nDays">—</div><div class="d">De los últimos 7</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Registro de hoy</h2>
+    <p class="sub">Sin esto, el modelo no puede relacionar tu progreso en pesas con lo que comes. Es la variable que distingue este proyecto.</p>
+    <div class="row r2">
+      <div><label>Fecha</label><input type="date" id="nDate"></div>
+      <div><label>Objetivo del plan (kcal)</label><input type="number" inputmode="numeric" id="nTarget" placeholder="2100"></div>
+    </div>
+    <div class="row r4">
+      <div><label>Kcal</label><input type="number" inputmode="numeric" id="nKcal" placeholder="2050"></div>
+      <div><label>Proteína (g)</label><input type="number" inputmode="decimal" step="0.1" id="nProtG" placeholder="160"></div>
+      <div><label>Carbohidratos (g)</label><input type="number" inputmode="decimal" step="0.1" id="nCarb" placeholder="200"></div>
+      <div><label>Grasa (g)</label><input type="number" inputmode="decimal" step="0.1" id="nFat" placeholder="60"></div>
+    </div>
+    <div class="row"><div><label>Notas</label><input type="text" id="nNotes" placeholder="Comida fuera, no pesé el arroz..."></div></div>
+    <button class="btn" onclick="saveNutrition()">Guardar</button>
+    <div class="note">No necesitas ser exacto todos los días. Lo que importa es la <b>tendencia semanal</b> y que el registro sea honesto: un dato inventado es peor que un dato faltante.</div>
+  </div>
+
+  <div class="card">
+    <h2>Historial de comida</h2>
+    <div class="tw"><table id="nHist"></table></div>
   </div>
 </div>
 
@@ -311,6 +363,44 @@ button.btn.sm{min-height:34px}
 <!-- ================= DATOS ================= -->
 <div class="tab" id="t-datos">
   <div class="card">
+    <h2>Cuenta y sincronización</h2>
+    <p class="sub" id="authSub">Sin cuenta, tus datos solo viven en este navegador. Con cuenta se guardan en la nube y los ves desde cualquier dispositivo.</p>
+
+    <div id="authOut">
+      <div class="authrow">
+        <div><label>Correo</label><input type="email" id="auEmail" placeholder="tu@correo.com" autocomplete="email"></div>
+        <div><label>Contraseña</label><input type="password" id="auPass" placeholder="••••••••" autocomplete="current-password"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn" onclick="doSignIn()">Entrar</button>
+        <button class="btn gh" onclick="doSignUp()">Crear cuenta</button>
+      </div>
+    </div>
+
+    <div id="authIn" style="display:none">
+      <div class="note" style="margin-top:0">Sesión iniciada como <b id="auWho">—</b></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn" onclick="syncNow()">Sincronizar ahora</button>
+        <button class="btn gh" onclick="pushLocalToCloud()">Subir historial local</button>
+        <button class="btn gh" onclick="doSignOut()">Cerrar sesión</button>
+      </div>
+      <div class="note" id="syncInfo">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Consentimiento de investigación</h2>
+    <p class="sub">Este proyecto usa datos de entrenamiento para entrenar un modelo predictivo. Tu participación es voluntaria y puedes retirarla cuando quieras.</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="cfgConsent" style="width:auto" onchange="saveConsent()">
+      <label for="cfgConsent" style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)">
+        Acepto que mis registros anonimizados se usen para entrenar y evaluar el modelo.
+      </label>
+    </div>
+    <div class="note">Si lo desmarcas, tus datos siguen siendo tuyos y visibles para ti, pero quedan fuera del conjunto de entrenamiento. Requiere sesión iniciada.</div>
+  </div>
+
+  <div class="card">
     <h2>Respaldo</h2>
     <p class="sub">Tus datos viven en este navegador. Si borras el historial o cambias de compu, se pierden. Exporta cada mes.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -358,6 +448,42 @@ const ROUTINES = {
     ["Press militar mancuernas","3 × 12"],["Elevaciones frontales","3 × 12"],["Posterior (pájaros)","4 × 15"],
     ["Curl spider","3 × 12"],["Press francés","3 × 12"],["Trabajo de cuello","2 × 15"]]}
 };
+/* Puente entre los nombres de la app y el catálogo de la base (tabla exercises.slug).
+   Cada entrada: [slug, rirMin, rirMax]. Si cambias un nombre, actualiza aquí también. */
+const EX_MAP = {
+  "Press banca inclinado":["press-banca-inclinado",1,3],
+  "Press militar con barra":["press-militar-barra",1,3],
+  "Fondos en paralelas":["fondos-paralelas",1,3],
+  "Aperturas con mancuerna":["aperturas-mancuerna",1,2],
+  "Extensión de tríceps en polea":["extension-triceps-polea",1,2],
+  "Elevaciones laterales":["elevaciones-laterales",0,2],
+  "Sentadilla hack":["sentadilla-hack",1,3],
+  "Peso muerto":["peso-muerto",2,3],
+  "Prensa":["prensa",1,3],
+  "Curl femoral":["curl-femoral",1,2],
+  "Pantorrilla":["pantorrilla",0,2],
+  "Dominadas":["dominadas",0,1],
+  "Jalón al pecho":["jalon-al-pecho",1,2],
+  "Remo unilateral mancuerna":["remo-unilateral-mancuerna",1,3],
+  "Remo alto abierto":["remo-alto-abierto",1,2],
+  "Curl de bíceps con barra":["curl-biceps-barra",1,2],
+  "Antebrazo":["antebrazo",0,2],
+  "Sentadilla goblet":["sentadilla-goblet",1,3],
+  "Extensión de cuádriceps":["extension-cuadriceps",1,2],
+  "Desplantes":["desplantes",1,2],
+  "Búlgaras":["bulgaras",1,2],
+  "Hiperextensión baja":["hiperextension-baja",1,3],
+  "Abductor":["abductor",0,2],
+  "Press militar mancuernas":["press-militar-mancuernas",1,3],
+  "Elevaciones frontales":["elevaciones-frontales",1,2],
+  "Posterior (pájaros)":["posterior-pajaros",0,2],
+  "Curl spider":["curl-spider",1,2],
+  "Press francés":["press-frances",1,2],
+  "Trabajo de cuello":["trabajo-cuello",2,3]
+};
+const slugOf   = n => (EX_MAP[n]||[null])[0];
+const rirTgtOf = n => { const e=EX_MAP[n]; return e? [e[1],e[2]] : [1,3]; };
+
 const PLAN = [[75.2,96.0],[74.7,95.2],[74.1,94.3],[73.5,93.0],[73.0,92.3],[72.6,91.5],[72.1,90.8],[71.5,90.0],
 [71.1,89.5],[70.8,89.0],[70.4,88.5],[70.0,88.0],[70.0,88.0],[69.4,87.3],[68.9,86.7],[68.0,86.0],
 [67.7,85.6],[67.4,85.2],[67.1,84.7],[66.5,84.0],[66.2,83.6],[65.9,83.1],[65.5,82.6],[65.0,82.0],[65.0,82.0],[65.0,82.0]];
@@ -365,13 +491,35 @@ const PHASE = w => w<=8?1:w<=16?2:w<=24?3:4;
 const KCAL  = w => w<=8?"2,100":w<=16?(w===12||w===13?"2,400 (diet break)":"2,000"):w<=24?"1,950":"~2,300";
 const KEY = "gymDiary_gabo_v1";
 
+/* Supabase. La clave publicable es segura en el cliente: todo el acceso
+   está limitado por las políticas RLS de la base. */
+const SUPA_URL = "https://ckvogrrzhdfdubqcwayn.supabase.co";
+const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
+
+const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
+                      cfg:{start:"2026-08-03",height:166,w0:75.6,consent:false}});
+
 let D = load();
 function load(){
-  try{ const r = localStorage.getItem(KEY); if(r) return JSON.parse(r); }catch(e){}
-  return {weights:[],measures:[],workouts:[],swims:[],sleep:[],
-          cfg:{start:"2026-08-03",height:166,w0:75.6}};
+  const base = EMPTY();
+  try{
+    const r = localStorage.getItem(KEY);
+    if(r){
+      const o = JSON.parse(r);
+      // Normaliza respaldos viejos que no traían todas las colecciones
+      for(const k of Object.keys(base)) if(o[k]===undefined) o[k] = base[k];
+      o.cfg = Object.assign({}, base.cfg, o.cfg||{});
+      return o;
+    }
+  }catch(e){}
+  return base;
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){ toast("No se pudo guardar"); } }
+/* Guarda local siempre; programa la subida salvo que se pida silencio
+   (quiet = el cambio ya vino de la nube, no hay que devolverlo). */
+function save(quiet){
+  try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){ toast("No se pudo guardar"); }
+  if(!quiet) scheduleSync();
+}
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on');
   setTimeout(()=>t.classList.remove('on'),2000); }
 const today = () => new Date().toISOString().slice(0,10);
@@ -429,6 +577,27 @@ function saveSwim(){
   ['sM','sMin','sPace','sNotes'].forEach(i=>document.getElementById(i).value='');
 }
 
+function saveNutrition(){
+  const g=id=>{const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v;};
+  const d=document.getElementById('nDate').value;
+  if(!d) return toast("Falta la fecha");
+  const kcal=g('nKcal');
+  if(kcal===null) return toast("Captura al menos las kcal");
+  const tg=g('nTarget');
+  upsert(D.nutrition,{date:d,kcal:Math.round(kcal),prot:g('nProtG'),carb:g('nCarb'),fat:g('nFat'),
+    target:tg==null?null:Math.round(tg),notes:document.getElementById('nNotes').value,src:'manual'});
+  save(); render(); toast("Comida guardada");
+  ['nKcal','nProtG','nCarb','nFat','nNotes'].forEach(i=>document.getElementById(i).value='');
+}
+
+/* Promedios de los últimos 7 días con registro, base de las variables del modelo */
+function nut7(){
+  if(!D.nutrition.length) return null;
+  const last=D.nutrition.slice(-7), n=last.length;
+  const s=(k)=>{const v=last.filter(x=>x[k]!=null); return v.length? v.reduce((a,b)=>a+b[k],0)/v.length : null;};
+  return {days:n, kcal:s('kcal'), prot:s('prot'), target:s('target')};
+}
+
 /* ============ PESAS ============ */
 function lastFor(exName){
   for(let i=D.workouts.length-1;i>=0;i--){
@@ -440,40 +609,57 @@ function renderExercises(){
   const r=document.getElementById('wRoutine').value, box=document.getElementById('exList');
   box.innerHTML='';
   ROUTINES[r].ex.forEach((e,ei)=>{
-    const [nm,tgt]=e, last=lastFor(nm);
+    const [nm,tgt]=e, last=lastFor(nm), [rMin,rMax]=rirTgtOf(nm);
     const d=document.createElement('div'); d.className='ex';
-    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt}</span></div>`;
-    if(last) h+=`<div class="last">Última vez (${fmt(last.date)}): ${last.sets.map(s=>s.w+'kg × '+s.r).join('  ·  ')}</div>`;
-    h+=`<div class="sets" id="sets-${ei}"></div>
+    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt} · RIR ${rMin}-${rMax}</span></div>`;
+    if(last) h+=`<div class="last">Última vez (${fmt(last.date)}): ${last.sets.map(s=>
+      s.w+'kg × '+s.r+(s.rir!=null?' @'+s.rir:'')).join('  ·  ')}</div>`;
+    h+=`<div class="sets" id="sets-${ei}">
+          <div class="setlbl"><span></span><span>kg</span><span>reps</span><span class="rir">RIR</span><span></span></div>
+        </div>
         <div style="padding:0 13px 11px"><button class="btn gh sm" onclick="addSet(${ei})">+ Serie</button></div>`;
     d.innerHTML=h; box.appendChild(d);
     const n=parseInt(tgt)||3; for(let i=0;i<n;i++) addSet(ei);
   });
 }
 function addSet(ei){
-  const c=document.getElementById('sets-'+ei), n=c.children.length+1;
+  const c=document.getElementById('sets-'+ei), n=c.querySelectorAll('.set').length+1;
   const row=document.createElement('div'); row.className='set';
   row.innerHTML=`<span class="n">${n}</span>
     <input type="number" inputmode="decimal" step="0.5" placeholder="kg" class="sw">
-    <input type="number" inputmode="decimal" placeholder="reps" class="sr">
+    <input type="number" inputmode="numeric" placeholder="reps" class="sr">
+    <input type="number" inputmode="decimal" step="0.5" min="0" max="10" placeholder="RIR" class="rir">
     <button onclick="this.parentNode.remove()">×</button>`;
   c.appendChild(row);
 }
 function saveWorkout(){
   const d=document.getElementById('wDate').value, r=document.getElementById('wRoutine').value;
   if(!d) return toast("Falta la fecha");
-  const sets=[];
+  const sets=[]; let sinRir=0;
   ROUTINES[r].ex.forEach((e,ei)=>{
     document.querySelectorAll('#sets-'+ei+' .set').forEach(row=>{
-      const w=parseFloat(row.querySelector('.sw').value), rp=parseInt(row.querySelector('.sr').value);
-      if(w>0&&rp>0) sets.push({ex:e[0],w,r:rp});
+      const w=parseFloat(row.querySelector('.sw').value),
+            rp=parseInt(row.querySelector('.sr').value),
+            rirRaw=row.querySelector('.rir').value;
+      if(w>0&&rp>0){
+        // null a propósito si no se capturó: un dato faltante es mejor que uno inventado
+        const rir = rirRaw==='' ? null : Math.min(10,Math.max(0,parseFloat(rirRaw)));
+        if(rir===null) sinRir++;
+        sets.push({ex:e[0],slug:slugOf(e[0]),w,r:rp,rir});
+      }
     });
   });
   if(!sets.length) return toast("Captura al menos una serie");
-  D.workouts.push({date:d,routine:r,sets,notes:document.getElementById('wNotes').value});
+  const rpe=parseFloat(document.getElementById('wRpe').value);
+  const dur=parseInt(document.getElementById('wDur').value);
+  D.workouts.push({date:d,routine:r,sets,
+    rpe:isNaN(rpe)?null:rpe, dur:isNaN(dur)?null:dur,
+    notes:document.getElementById('wNotes').value});
   D.workouts.sort((a,b)=>a.date<b.date?-1:1);
-  save(); document.getElementById('wNotes').value=''; renderExercises(); render();
-  toast("Sesión guardada: "+sets.length+" series");
+  save();
+  ['wNotes','wRpe','wDur'].forEach(i=>document.getElementById(i).value='');
+  renderExercises(); render();
+  toast(sinRir ? `Guardada · ${sinRir} serie${sinRir>1?'s':''} sin RIR` : "Sesión guardada: "+sets.length+" series");
 }
 const e1rm=(w,r)=>w*(1+r/30);
 
@@ -579,6 +765,35 @@ function render(){
     ? '<tr><th>Fecha</th><th>Sem</th><th>Cintura</th><th>% grasa</th><th>Pecho</th><th>Brazo</th><th>Muslo</th><th></th></tr>'+rows.join('')
     : '<tr><td class="empty">Sin medidas registradas.</td></tr>';
 
+  // Comida
+  const nz=nut7();
+  document.getElementById('nAvg').textContent  = nz&&nz.kcal!=null? Math.round(nz.kcal)+' kcal':'—';
+  document.getElementById('nAvgD').textContent = nz? nz.days+' días con registro':'Sin datos';
+  const balEl=document.getElementById('nBal');
+  if(nz&&nz.kcal!=null&&nz.target!=null){
+    const b=Math.round(nz.kcal-nz.target);
+    balEl.textContent=(b>0?'+':'')+b; balEl.className='v';
+  } else balEl.textContent='—';
+  const ppk = (nz&&nz.prot!=null&&a)? nz.prot/a : null;
+  document.getElementById('nProt').textContent = ppk? ppk.toFixed(2)+' g/kg':'—';
+  document.getElementById('nProtD').textContent = ppk
+    ? (ppk>=1.8?'✓ Suficiente para conservar músculo':'Bajo: apunta a 1.8-2.2 g/kg')
+    : 'Mínimo: 1.8 g/kg';
+  document.getElementById('nDays').textContent = nz? nz.days+'/7':'—';
+
+  const nh=D.nutrition.slice().reverse();
+  document.getElementById('nHist').innerHTML = nh.length
+    ? '<tr><th>Fecha</th><th>Sem</th><th>Kcal</th><th>Objetivo</th><th>Prot</th><th>Carb</th><th>Grasa</th><th>Notas</th><th></th></tr>'+
+      nh.map((x,i)=>{const idx=D.nutrition.length-1-i;
+      const dif = (x.kcal!=null&&x.target!=null)? x.kcal-x.target : null;
+      return `<tr><td>${fmt(x.date)}</td><td>${weekOf(x.date)}</td>
+      <td class="pr">${x.kcal??'—'}</td>
+      <td style="color:var(--dim)">${x.target??'—'}${dif!=null?` <span class="chip ${Math.abs(dif)<=150?'c-ok':(dif>0?'c-b':'c-w')}">${dif>0?'+':''}${dif}</span>`:''}</td>
+      <td>${x.prot??'—'}</td><td>${x.carb??'—'}</td><td>${x.fat??'—'}</td>
+      <td style="color:var(--dim)">${x.notes||'—'}</td>
+      <td><button class="btn gh sm" onclick="del('nutrition',${idx})">borrar</button></td></tr>`}).join('')
+    : '<tr><td class="empty">Sin registros de comida. Este es el dato que le falta al modelo.</td></tr>';
+
   // Nado
   const TY={int:'Intervalos',cont:'Continuo',tec:'Técnica'};
   const sh=D.swims.slice().reverse();
@@ -596,7 +811,12 @@ function render(){
     return `<tr${n===w?' style="background:rgba(78,207,168,.09)"':''}><td>${n}</td><td>${PHASE(n)}</td><td>${KCAL(n)}</td>
     <td>${p[0].toFixed(1)}</td><td>${p[1].toFixed(1)}</td><td class="pr">${hit}</td></tr>`}).join('');
 }
-function del(k,i){ if(!confirm('¿Borrar este registro?')) return; D[k].splice(i,1); save(); render(); toast('Borrado'); }
+function del(k,i){
+  if(!confirm('¿Borrar este registro?')) return;
+  const rec=D[k][i];
+  D[k].splice(i,1); save(true); render();
+  remoteDelete(k,rec).finally(()=>toast('Borrado'));
+}
 
 /* ============ GRÁFICAS SVG ============ */
 function line(svgId, series, yLab){
@@ -651,7 +871,11 @@ function importData(e){
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{ try{ const o=JSON.parse(ev.target.result);
-    if(!o.weights) throw 0; D=o; save(); init(); toast('Datos importados'); }
+    if(!o.weights) throw 0;
+    const base=EMPTY();
+    for(const k of Object.keys(base)) if(o[k]===undefined) o[k]=base[k];
+    o.cfg=Object.assign({},base.cfg,o.cfg||{});
+    D=o; save(); init(); toast('Datos importados'); }
     catch(x){ toast('Archivo inválido'); } };
   r.readAsText(f);
 }
@@ -661,20 +885,277 @@ function saveCfg(){
   D.cfg.w0=parseFloat(document.getElementById('cfgW0').value)||D.cfg.w0;
   save(); render(); toast('Configuración guardada');
 }
-function wipe(){ if(!confirm('¿Borrar TODOS tus registros? Esto no se puede deshacer.')) return;
-  localStorage.removeItem(KEY); D=load(); init(); toast('Todo borrado'); }
+function wipe(){
+  if(!confirm('¿Borrar TODOS los registros de ESTE dispositivo?\n\nSi tienes sesión iniciada, la copia en la nube NO se borra: al sincronizar volverán. Para borrarlos de verdad, cierra sesión antes.')) return;
+  localStorage.removeItem(KEY); D=load(); init(); toast('Borrado de este dispositivo');
+}
+
+/* ====================================================================
+   SUPABASE · sincronización offline-first
+   El navegador siempre manda: se guarda local primero y la nube se
+   actualiza después. Si no hay internet o no hay sesión, la app funciona
+   igual que antes. Los upsert usan llaves naturales (fecha) o client_uid,
+   así que sincronizar dos veces nunca duplica.
+   ==================================================================== */
+let SB=null, SESSION=null, CATALOG=null, syncTimer=null;
+
+function setSync(cls,txt){
+  const b=document.getElementById('syncBadge');
+  if(!b) return;
+  b.className='sync '+cls;
+  document.getElementById('syncTxt').textContent=txt;
+}
+const uid = () => (self.crypto&&crypto.randomUUID) ? crypto.randomUUID()
+                  : 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+const paceToSec = p => { if(!p) return null; const m=String(p).match(/^(\d+):(\d{1,2})$/);
+  return m? (+m[1])*60+(+m[2]) : null; };
+const secToPace = s => (s==null)? '' : Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+const SWIM_TO_DB = {int:'intervalos', cont:'continuo', tec:'tecnica'};
+const SWIM_FROM_DB = {intervalos:'int', continuo:'cont', tecnica:'tec'};
+
+async function initSupabase(){
+  try{
+    const m = await import('https://esm.sh/@supabase/supabase-js@2');
+    SB = m.createClient(SUPA_URL, SUPA_KEY, {auth:{persistSession:true,autoRefreshToken:true}});
+  }catch(e){
+    setSync('off','Modo local · sin conexión'); return;
+  }
+  const {data} = await SB.auth.getSession();
+  await onSession(data.session);
+  SB.auth.onAuthStateChange((_e,s)=>{ onSession(s); });
+}
+
+async function onSession(s){
+  SESSION = s;
+  const inn=document.getElementById('authIn'), out=document.getElementById('authOut');
+  if(s){
+    inn.style.display=''; out.style.display='none';
+    document.getElementById('auWho').textContent = s.user.email;
+    setSync('','Conectando...');
+    try{
+      await loadCatalog();
+      await loadProfile();
+      await syncNow();
+    }catch(e){ setSync('err','Error de conexión'); }
+  }else{
+    inn.style.display='none'; out.style.display='';
+    setSync('off','Modo local');
+  }
+}
+
+async function doSignUp(){
+  if(!SB) return toast('Sin conexión con el servidor');
+  const email=document.getElementById('auEmail').value.trim();
+  const password=document.getElementById('auPass').value;
+  if(!email||password.length<6) return toast('Correo válido y contraseña de 6+ caracteres');
+  const {error}=await SB.auth.signUp({email,password});
+  toast(error? error.message : 'Cuenta creada. Revisa tu correo si pide confirmación.');
+}
+async function doSignIn(){
+  if(!SB) return toast('Sin conexión con el servidor');
+  const email=document.getElementById('auEmail').value.trim();
+  const password=document.getElementById('auPass').value;
+  const {error}=await SB.auth.signInWithPassword({email,password});
+  if(error) return toast(error.message);
+  document.getElementById('auPass').value='';
+  toast('Sesión iniciada');
+}
+async function doSignOut(){
+  if(!SB) return;
+  await SB.auth.signOut();
+  toast('Sesión cerrada · los datos siguen en este dispositivo');
+}
+
+async function loadCatalog(){
+  const [ex,rt] = await Promise.all([
+    SB.from('exercises').select('id,slug').is('owner_id',null),
+    SB.from('routines').select('id,slug').is('owner_id',null)
+  ]);
+  CATALOG={ex:{},rt:{},exById:{},rtById:{}};
+  (ex.data||[]).forEach(x=>{CATALOG.ex[x.slug]=x.id; CATALOG.exById[x.id]=x.slug;});
+  (rt.data||[]).forEach(x=>{CATALOG.rt[x.slug]=x.id; CATALOG.rtById[x.id]=x.slug;});
+}
+
+async function loadProfile(){
+  const {data}=await SB.from('profiles').select('*').eq('id',SESSION.user.id).maybeSingle();
+  if(!data) return;
+  document.getElementById('cfgConsent').checked = !!data.research_consent;
+  D.cfg.consent = !!data.research_consent;
+  if(data.height_cm)         D.cfg.height = +data.height_cm;
+  if(data.plan_start)        D.cfg.start  = data.plan_start;
+  if(data.initial_weight_kg) D.cfg.w0     = +data.initial_weight_kg;
+  save(true);
+}
+
+async function saveConsent(){
+  const v=document.getElementById('cfgConsent').checked;
+  D.cfg.consent=v; save(true);
+  if(!SB||!SESSION){ document.getElementById('cfgConsent').checked=false;
+    return toast('Inicia sesión para registrar el consentimiento'); }
+  const {error}=await SB.from('profiles').update({research_consent:v}).eq('id',SESSION.user.id);
+  toast(error? 'No se pudo guardar' : (v?'Consentimiento registrado':'Consentimiento retirado'));
+}
+
+/* -------- Subir todo lo local -------- */
+async function pushLocalToCloud(){
+  if(!SB||!SESSION) return toast('Inicia sesión primero');
+  if(!CATALOG) await loadCatalog();
+  const u=SESSION.user.id;
+  setSync('','Subiendo...');
+  try{
+    await SB.from('profiles').update({
+      height_cm:D.cfg.height, plan_start:D.cfg.start, initial_weight_kg:D.cfg.w0
+    }).eq('id',u);
+
+    // Se filtran los registros incompletos: Postgres rechaza los NOT NULL vacíos
+    const bwRows=D.weights.filter(x=>x.date&&x.kg!=null)
+      .map(x=>({user_id:u,measured_on:x.date,weight_kg:x.kg}));
+    if(bwRows.length) await SB.from('body_weights').upsert(bwRows,{onConflict:'user_id,measured_on'});
+
+    if(D.measures.length) await SB.from('body_measures').upsert(
+      D.measures.map(x=>({user_id:u,measured_on:x.date,waist_cm:x.cin,neck_cm:x.cue,
+        chest_cm:x.pec,arm_cm:x.bra,thigh_cm:x.mus,hip_cm:x.cad})),
+      {onConflict:'user_id,measured_on'});
+
+    const slRows=D.sleep.filter(x=>x.date&&x.h!=null)
+      .map(x=>({user_id:u,logged_on:x.date,hours:x.h}));
+    if(slRows.length) await SB.from('sleep_logs').upsert(slRows,{onConflict:'user_id,logged_on'});
+
+    const nuRows=D.nutrition.filter(x=>x.date).map(x=>({user_id:u,logged_on:x.date,
+      kcal:x.kcal==null?null:Math.round(x.kcal), protein_g:x.prot, carbs_g:x.carb, fat_g:x.fat,
+      kcal_target:x.target==null?null:Math.round(x.target), notes:x.notes||null, source:'manual'}));
+    if(nuRows.length) await SB.from('nutrition_logs').upsert(nuRows,{onConflict:'user_id,logged_on'});
+
+    for(const s of D.swims){
+      if(!s.date) continue;
+      if(!s.uid) s.uid=uid();
+      await SB.from('swims').upsert({user_id:u,client_uid:s.uid,performed_on:s.date,
+        kind:SWIM_TO_DB[s.type]||'continuo',
+        meters:s.m?Math.round(s.m):null, minutes:s.min||null,
+        pace_sec_100m:paceToSec(s.pace), notes:s.notes||null},
+        {onConflict:'user_id,client_uid'});
+    }
+
+    for(const w of D.workouts){
+      if(!w.uid) w.uid=uid();
+      const {data:wr,error:we} = await SB.from('workouts').upsert({
+        user_id:u, client_uid:w.uid, performed_on:w.date,
+        routine_id:CATALOG.rt[w.routine]||null,
+        session_rpe:w.rpe??null, duration_min:w.dur??null, notes:w.notes||null
+      },{onConflict:'user_id,client_uid'}).select('id').single();
+      if(we) throw we;
+      await SB.from('workout_sets').delete().eq('workout_id',wr.id);
+      const rows=[], seen={};
+      for(const s of (w.sets||[])){
+        const eid = CATALOG.ex[s.slug || slugOf(s.ex)];
+        if(!eid) continue;                       // ejercicio fuera del catálogo: se omite
+        seen[eid]=(seen[eid]||0)+1;
+        rows.push({workout_id:wr.id, exercise_id:eid, set_index:seen[eid],
+                   weight_kg:s.w, reps:s.r, rir:(s.rir==null?null:s.rir)});
+      }
+      if(rows.length) await SB.from('workout_sets').insert(rows);
+    }
+
+    save(true);
+    setSync('ok','Sincronizado '+new Date().toTimeString().slice(0,5));
+    return true;
+  }catch(e){
+    setSync('err','Error al sincronizar');
+    toast('Falló la subida: '+(e.message||e));
+    return false;
+  }
+}
+
+/* -------- Traer lo de la nube y reemplazar lo local -------- */
+async function pullFromCloud(){
+  if(!SB||!SESSION) return;
+  if(!CATALOG) await loadCatalog();
+  const nameBySlug={}; Object.entries(EX_MAP).forEach(([n,v])=>nameBySlug[v[0]]=n);
+
+  const [bw,bm,sl,nu,sw,wo] = await Promise.all([
+    SB.from('body_weights').select('*').order('measured_on'),
+    SB.from('body_measures').select('*').order('measured_on'),
+    SB.from('sleep_logs').select('*').order('logged_on'),
+    SB.from('nutrition_logs').select('*').order('logged_on'),
+    SB.from('swims').select('*').order('performed_on'),
+    SB.from('workouts').select('*,workout_sets(*)').order('performed_on')
+  ]);
+  if(bw.error||wo.error) throw (bw.error||wo.error);
+
+  D.weights  = (bw.data||[]).map(x=>({date:x.measured_on,kg:+x.weight_kg}));
+  D.measures = (bm.data||[]).map(x=>({date:x.measured_on,cin:num(x.waist_cm),cue:num(x.neck_cm),
+                 pec:num(x.chest_cm),bra:num(x.arm_cm),mus:num(x.thigh_cm),cad:num(x.hip_cm)}));
+  D.sleep    = (sl.data||[]).map(x=>({date:x.logged_on,h:num(x.hours)}));
+  D.nutrition= (nu.data||[]).map(x=>({date:x.logged_on,kcal:x.kcal,prot:num(x.protein_g),
+                 carb:num(x.carbs_g),fat:num(x.fat_g),target:x.kcal_target,notes:x.notes||'',src:x.source}));
+  D.swims    = (sw.data||[]).map(x=>({uid:x.client_uid,date:x.performed_on,
+                 type:SWIM_FROM_DB[x.kind]||'cont', m:x.meters||0, min:num(x.minutes)||0,
+                 pace:secToPace(x.pace_sec_100m), notes:x.notes||''}));
+  D.workouts = (wo.data||[]).map(x=>({
+    uid:x.client_uid, date:x.performed_on, routine:CATALOG.rtById[x.routine_id]||'upperA',
+    rpe:num(x.session_rpe), dur:x.duration_min, notes:x.notes||'',
+    sets:(x.workout_sets||[])
+      .sort((a,b)=>a.set_index-b.set_index)
+      .map(s=>{ const slug=CATALOG.exById[s.exercise_id];
+        return {ex:nameBySlug[slug]||slug, slug, w:+s.weight_kg, r:s.reps, rir:num(s.rir)}; })
+  }));
+  ['weights','measures','sleep','nutrition','swims','workouts']
+    .forEach(k=>D[k].sort((a,b)=>a.date<b.date?-1:1));
+  save(true);
+}
+const num = v => (v===null||v===undefined||v==='')? null : +v;
+
+async function syncNow(){
+  if(!SB||!SESSION) return toast('Inicia sesión primero');
+  if(!navigator.onLine){ setSync('off','Sin conexión · se guardó local'); return; }
+  const ok = await pushLocalToCloud();
+  if(!ok) return;
+  try{ await pullFromCloud(); render(); drawCharts(); }
+  catch(e){ setSync('err','Error al descargar'); return; }
+  const info=document.getElementById('syncInfo');
+  if(info) info.textContent = `${D.workouts.length} sesiones · ${D.weights.length} pesos · `+
+    `${D.nutrition.length} días de comida · última sincronización ${new Date().toTimeString().slice(0,5)}`;
+  setSync('ok','Sincronizado '+new Date().toTimeString().slice(0,5));
+}
+
+/* Sincroniza sola, sin estorbar: espera 3 s tras el último cambio */
+function scheduleSync(){
+  if(!SB||!SESSION) return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>{ syncNow().catch(()=>{}); },3000);
+}
+window.addEventListener('online',  ()=>{ if(SESSION){ setSync('','Reconectando...'); scheduleSync(); } });
+window.addEventListener('offline', ()=>setSync('off','Sin conexión · guardando local'));
+
+/* Borra en la nube lo que se borró aquí */
+async function remoteDelete(kind, rec){
+  if(!SB||!SESSION||!rec) return;
+  const u=SESSION.user.id;
+  try{
+    if(kind==='weights')   await SB.from('body_weights').delete().eq('user_id',u).eq('measured_on',rec.date);
+    if(kind==='measures')  await SB.from('body_measures').delete().eq('user_id',u).eq('measured_on',rec.date);
+    if(kind==='sleep')     await SB.from('sleep_logs').delete().eq('user_id',u).eq('logged_on',rec.date);
+    if(kind==='nutrition') await SB.from('nutrition_logs').delete().eq('user_id',u).eq('logged_on',rec.date);
+    if(kind==='swims'   && rec.uid) await SB.from('swims').delete().eq('user_id',u).eq('client_uid',rec.uid);
+    if(kind==='workouts'&& rec.uid) await SB.from('workouts').delete().eq('user_id',u).eq('client_uid',rec.uid);
+  }catch(e){}
+}
 
 /* ============ INIT ============ */
 function init(){
-  ['qDate','wDate','pDate','mDate','sDate'].forEach(i=>document.getElementById(i).value=today());
+  ['qDate','wDate','pDate','mDate','sDate','nDate'].forEach(i=>document.getElementById(i).value=today());
   const sel=document.getElementById('wRoutine');
   sel.innerHTML=Object.keys(ROUTINES).map(k=>`<option value="${k}">${ROUTINES[k].name}</option>`).join('');
   document.getElementById('cfgStart').value=D.cfg.start;
   document.getElementById('cfgH').value=D.cfg.height;
   document.getElementById('cfgW0').value=D.cfg.w0;
+  document.getElementById('cfgConsent').checked=!!D.cfg.consent;
+  // Prellena el objetivo calórico de la semana según el plan
+  document.getElementById('nTarget').value=(KCAL(curWeek())||'').replace(/[^\d]/g,'')||'';
   renderExercises(); render(); drawCharts();
 }
 init();
+initSupabase();
 
 /* ============ PWA ============ */
 if('serviceWorker' in navigator){
