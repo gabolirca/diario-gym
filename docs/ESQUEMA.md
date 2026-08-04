@@ -84,6 +84,18 @@ objetivo del modelo: *la carga que deja al usuario dentro de esta ventana*.
 `profiles` (antropometría, experiencia, `research_consent`), `body_weights`,
 `body_measures`, `sleep_logs`, `swims`, `plan_targets`.
 
+**Alta de participantes.** `profiles` incluye `training_days_per_week`,
+`target_weight_kg`, `target_waist_cm` y `onboarded_at`. Con esos campos la app arma para
+cada persona su propia curva de peso y calorías, en lugar de heredar el plan del autor.
+La curva se guarda semana a semana en `plan_targets`. `onboarded_at` es lo que evita que
+el cuestionario se repita al iniciar sesión en otro dispositivo.
+
+El catálogo tiene **8 rutinas globales**: cinco del split original (4 o 5 días) y tres de
+cuerpo completo para quien solo puede entrenar 3. Qué rutinas ve cada participante lo
+decide `training_days_per_week`. El modelo es personalizado, así que no necesita que
+todos entrenen igual; lo que sí necesita es que sostengan el registro ocho semanas, y
+para eso importa más la adherencia que la uniformidad.
+
 **`nutrition_logs`** es nueva. `source` distingue `manual` de `estimated`: solo lo
 capturado por el usuario cuenta como evidencia. Sin filas con `source = 'manual'`,
 la hipótesis H2 no se puede probar.
@@ -190,6 +202,8 @@ Hecho:
 3. **Captura de RIR por serie**, con meta por ejercicio visible en la interfaz.
 4. Pestaña de comida que alimenta `nutrition_logs`.
 5. Consentimiento de investigación conectado a `profiles.research_consent`.
+6. Alta guiada de participantes: cuenta, cuestionario, plan calculado y rutinas asignadas
+   según los días que cada quien pueda entrenar.
 
 Pendiente:
 

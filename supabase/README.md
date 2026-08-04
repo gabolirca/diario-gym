@@ -61,6 +61,7 @@ De ahí en adelante: `npx supabase migration new <nombre>` para crear una, y
 | 10 | `fk_indexes_and_policy_split` | Índices de llaves foráneas, políticas separadas por acción |
 | 11 | `client_uid_for_offline_sync` | `client_uid` en `workouts` y `swims` para sincronización idempotente |
 | 12 | `client_uid_not_null_unique` | Corrección: restricción única plena (la parcial rompía el `upsert` del cliente) |
+| 13 | `onboarding_fields_and_fullbody_routines` | Campos de alta en `profiles` y 3 rutinas de cuerpo completo para quien entrena 3 días |
 
 Verificado con el linter de Supabase: **0 avisos de seguridad**.
 

@@ -91,6 +91,33 @@ tr:last-child td{border-bottom:none}
 .setlbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;text-align:center}
 .setlbl span.rir{color:var(--acc)}
 
+/* --- Alta de participante --- */
+#onboard{position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;display:none}
+#onboard.on{display:block}
+.obwrap{max-width:520px;margin:0 auto;
+  padding:calc(30px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom))}
+.obwrap h1{font-size:24px;margin:0 0 6px;letter-spacing:-.4px}
+.obwrap .lead{color:var(--dim);font-size:14px;line-height:1.6;margin:0 0 22px}
+.obstep{display:none} .obstep.on{display:block}
+.obbar{display:flex;gap:5px;margin-bottom:22px}
+.obbar i{flex:1;height:3px;border-radius:99px;background:var(--card2)}
+.obbar i.on{background:var(--acc)}
+.obnum{color:var(--acc);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.obnav{display:flex;gap:10px;margin-top:22px}
+.obnav .btn{flex:1}
+.opts{display:grid;gap:9px;margin-bottom:14px}
+.opt{display:block;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:13px 15px;cursor:pointer;transition:border-color .15s}
+.opt:hover{border-color:var(--acc2)}
+.opt.sel{border-color:var(--acc);background:rgba(78,207,168,.08)}
+.opt b{display:block;font-size:15px;margin-bottom:2px}
+.opt span{color:var(--dim);font-size:12.5px;line-height:1.5}
+.obwrap .err{color:var(--bad);font-size:13px;margin-top:10px;min-height:18px}
+.resumen{background:var(--card2);border:1px solid var(--acc2);border-radius:10px;padding:15px;margin:4px 0 6px}
+.resumen div{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:5px 0}
+.resumen div span:first-child{color:var(--dim)}
+.resumen div span:last-child{font-weight:600;text-align:right}
+
 /* --- Cuenta y sincronización --- */
 .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
 .sync i{width:8px;height:8px;border-radius:99px;background:var(--dim);display:inline-block}
@@ -135,11 +162,123 @@ button.btn.sm{min-height:34px}
 </style>
 </head>
 <body>
+
+<!-- ================= ALTA DE PARTICIPANTE ================= -->
+<div id="onboard">
+ <div class="obwrap">
+  <div class="obbar"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <!-- 0 · Bienvenida y cuenta -->
+  <div class="obstep on" id="ob0">
+    <div class="obnum">Paso 1 de 6</div>
+    <h1>Diario de Entrenamiento</h1>
+    <p class="lead">Registra tus series, tu esfuerzo y tu comida. La app aprende de tu historial y va ajustando las cargas contigo.<br><br>
+      Crea una cuenta para que tus datos se guarden y los veas desde cualquier dispositivo.</p>
+    <div class="row"><div><label>Correo</label><input type="email" id="obEmail" placeholder="tu@correo.com" autocomplete="email"></div></div>
+    <div class="row"><div><label>Contraseña (mínimo 6 caracteres)</label><input type="password" id="obPass" placeholder="••••••••" autocomplete="new-password"></div></div>
+    <div class="err" id="obErr0"></div>
+    <div class="obnav">
+      <button class="btn" onclick="obCrear()">Crear cuenta</button>
+      <button class="btn gh" onclick="obEntrar()">Ya tengo cuenta</button>
+    </div>
+    <div class="note">¿Solo quieres probar? <a href="#" onclick="obSaltar();return false" style="color:var(--acc)">Usar sin cuenta</a> — los datos se quedan en este navegador.</div>
+  </div>
+
+  <!-- 1 · Quién eres -->
+  <div class="obstep" id="ob1">
+    <div class="obnum">Paso 2 de 6</div>
+    <h1>¿Cómo te llamas?</h1>
+    <p class="lead">Solo para que la app te salude por tu nombre. En cualquier publicación los datos van anonimizados.</p>
+    <div class="row"><div><label>Nombre o apodo</label><input type="text" id="obNombre" placeholder="Gabo" autocomplete="given-name"></div></div>
+    <div class="row r2">
+      <div><label>Sexo</label><select id="obSexo"><option value="M">Hombre</option><option value="F">Mujer</option></select></div>
+      <div><label>Fecha de nacimiento</label><input type="date" id="obNac"></div>
+    </div>
+    <div class="note">El sexo y la edad entran en el cálculo de tus calorías y en el modelo. Si prefieres no darlos, puedes dejarlos como están.</div>
+    <div class="err" id="obErr1"></div>
+    <div class="obnav"><button class="btn" onclick="obIr(2)">Continuar</button></div>
+  </div>
+
+  <!-- 2 · Medidas -->
+  <div class="obstep" id="ob2">
+    <div class="obnum">Paso 3 de 6</div>
+    <h1>¿De dónde partimos?</h1>
+    <p class="lead">Pésate al despertar, sin ropa. La cintura se mide de pie, relajado, sin meter la panza.</p>
+    <div class="row r2">
+      <div><label>Estatura (cm)</label><input type="number" inputmode="decimal" step="0.5" id="obEst" placeholder="172"></div>
+      <div><label>Peso actual (kg)</label><input type="number" inputmode="decimal" step="0.1" id="obPeso" placeholder="78.5"></div>
+    </div>
+    <div class="row r2">
+      <div><label>Cintura (cm) · opcional</label><input type="number" inputmode="decimal" step="0.1" id="obCin" placeholder="92"></div>
+      <div><label>Cuello (cm) · opcional</label><input type="number" inputmode="decimal" step="0.1" id="obCue" placeholder="38"></div>
+    </div>
+    <div class="note">Con cintura y cuello se estima tu porcentaje de grasa por la fórmula Navy. Si no los tienes a la mano, puedes agregarlos después.</div>
+    <div class="err" id="obErr2"></div>
+    <div class="obnav"><button class="btn gh" onclick="obIr(1)">Atrás</button><button class="btn" onclick="obIr(3)">Continuar</button></div>
+  </div>
+
+  <!-- 3 · Objetivo -->
+  <div class="obstep" id="ob3">
+    <div class="obnum">Paso 4 de 6</div>
+    <h1>¿Qué buscas?</h1>
+    <p class="lead">De esto dependen tus calorías y la curva que vas a seguir.</p>
+    <div class="opts" id="obGoals">
+      <label class="opt" data-g="fat_loss"><b>Bajar grasa</b><span>Déficit moderado. Pierdes peso conservando la fuerza que ya tienes.</span></label>
+      <label class="opt sel" data-g="recomp"><b>Recomposición</b><span>Déficit ligero. Bajas grasa despacio mientras ganas algo de músculo. Lo más común si vienes de entrenar poco.</span></label>
+      <label class="opt" data-g="muscle_gain"><b>Ganar músculo</b><span>Superávit controlado. Subes de peso apuntando a que sea tejido magro.</span></label>
+      <label class="opt" data-g="maintenance"><b>Mantener y ponerme fuerte</b><span>Sin cambio de peso. Solo progresar en cargas.</span></label>
+    </div>
+    <div class="row" id="obMetaRow"><div><label>Peso al que quieres llegar (kg)</label><input type="number" inputmode="decimal" step="0.1" id="obMeta" placeholder="72"></div></div>
+    <div class="err" id="obErr3"></div>
+    <div class="obnav"><button class="btn gh" onclick="obIr(2)">Atrás</button><button class="btn" onclick="obIr(4)">Continuar</button></div>
+  </div>
+
+  <!-- 4 · Frecuencia y experiencia -->
+  <div class="obstep" id="ob4">
+    <div class="obnum">Paso 5 de 6</div>
+    <h1>¿Cuántos días puedes entrenar?</h1>
+    <p class="lead">Sé realista: más vale sostener tres días ocho semanas que abandonar cinco a la tercera.</p>
+    <div class="opts" id="obDias">
+      <label class="opt" data-d="3"><b>3 días</b><span>Cuerpo completo. Cada sesión toca todo el cuerpo.</span></label>
+      <label class="opt sel" data-d="4"><b>4 días</b><span>Torso y pierna alternados.</span></label>
+      <label class="opt" data-d="5"><b>5 días</b><span>Rutina dividida, más volumen por grupo muscular.</span></label>
+    </div>
+    <div class="row"><div><label>¿Cuánto llevas entrenando con pesas?</label><select id="obExp">
+      <option value="0">Estoy empezando</option>
+      <option value="6">Menos de un año</option>
+      <option value="18" selected>Entre 1 y 3 años</option>
+      <option value="48">Más de 3 años</option>
+    </select></div></div>
+    <div class="err" id="obErr4"></div>
+    <div class="obnav"><button class="btn gh" onclick="obIr(3)">Atrás</button><button class="btn" onclick="obIr(5)">Continuar</button></div>
+  </div>
+
+  <!-- 5 · Plan y consentimiento -->
+  <div class="obstep" id="ob5">
+    <div class="obnum">Paso 6 de 6</div>
+    <h1>Tu plan</h1>
+    <p class="lead">Calculado con tus datos. Podrás ajustarlo después desde la pestaña Datos.</p>
+    <div class="resumen" id="obResumen"></div>
+    <div class="note" style="margin-bottom:18px">Las calorías salen de la ecuación de Mifflin-St Jeor ajustada por tu actividad. Es una estimación: si en tres semanas tu peso no se mueve como el plan dice, se ajusta.</div>
+
+    <h3 style="font-size:15px;color:var(--acc);margin:22px 0 8px">Participación en el estudio</h3>
+    <p class="lead" style="margin-bottom:12px">Este proyecto usa los registros de entrenamiento para entrenar y evaluar un modelo predictivo. Tu participación es voluntaria y puedes retirarla cuando quieras desde la pestaña Datos.</p>
+    <label class="opt" id="obConsent" style="display:flex;gap:11px;align-items:flex-start">
+      <input type="checkbox" id="obConsentChk" style="width:auto;margin-top:3px">
+      <span style="color:var(--ink);font-size:14px">Acepto que mis registros <b>anonimizados</b> se usen para entrenar y evaluar el modelo. Entiendo que puedo retirar este permiso en cualquier momento y que mis datos seguirán siendo míos.</span>
+    </label>
+    <div class="err" id="obErr5"></div>
+    <div class="obnav"><button class="btn gh" onclick="obIr(4)">Atrás</button><button class="btn" onclick="obTerminar()">Empezar</button></div>
+  </div>
+ </div>
+</div>
+
 <div class="wrap">
 
 <header>
   <h1>Diario de Entrenamiento</h1>
-  <div class="s">Plan de recomposición 26 semanas · <span id="hdWeek">—</span></div>
+  <div class="s"><span id="hdPlan">—</span></div>
+  <div class="s"><span id="hdWeek">—</span></div>
   <div class="s" style="margin-top:6px"><span class="sync off" id="syncBadge"><i></i><span id="syncTxt">Modo local</span></span></div>
 </header>
 
@@ -171,7 +310,7 @@ button.btn.sm{min-height:34px}
 
   <div class="card">
     <h2>Progreso general</h2>
-    <p class="sub">De 75.6 kg a 65.0 kg · 10.6 kg de grasa a perder</p>
+    <p class="sub" id="pgSub">—</p>
     <div class="bar"><i id="pbPeso" style="width:0%"></i></div>
     <div class="note" id="pbPesoT">Registra tu peso para empezar.</div>
     <div class="bar" style="margin-top:16px"><i id="pbCin" style="width:0%"></i></div>
@@ -191,7 +330,7 @@ button.btn.sm{min-height:34px}
 
   <div class="card">
     <h2>Esta semana</h2>
-    <p class="sub">5 sesiones de pesas · 3 de natación · 1 de zona 2</p>
+    <p class="sub" id="weekSub">—</p>
     <div id="weekGrid"></div>
   </div>
 
@@ -446,8 +585,34 @@ const ROUTINES = {
     ["Búlgaras","3 × 12"],["Hiperextensión baja","3 × 15"],["Abductor","3 × 15"]]},
   upperC:{name:"Upper C — Hombro y brazo", ex:[
     ["Press militar mancuernas","3 × 12"],["Elevaciones frontales","3 × 12"],["Posterior (pájaros)","4 × 15"],
-    ["Curl spider","3 × 12"],["Press francés","3 × 12"],["Trabajo de cuello","2 × 15"]]}
+    ["Curl spider","3 × 12"],["Press francés","3 × 12"],["Trabajo de cuello","2 × 15"]]},
+  fullA:{name:"Cuerpo completo A", ex:[
+    ["Sentadilla hack","3 × 8"],["Press banca inclinado","3 × 8"],["Remo unilateral mancuerna","3 × 10"],
+    ["Curl femoral","3 × 12"],["Elevaciones laterales","3 × 15"]]},
+  fullB:{name:"Cuerpo completo B", ex:[
+    ["Peso muerto","3 × 6"],["Press militar con barra","3 × 10"],["Jalón al pecho","3 × 12"],
+    ["Prensa","3 × 12"],["Curl de bíceps con barra","3 × 10"]]},
+  fullC:{name:"Cuerpo completo C", ex:[
+    ["Sentadilla goblet","3 × 12"],["Fondos en paralelas","3 × 10"],["Dominadas","3 × máx"],
+    ["Hiperextensión baja","3 × 15"],["Extensión de tríceps en polea","3 × 12"]]}
 };
+
+/* Qué rutinas ve cada quien según los días que puede entrenar.
+   El modelo es personalizado, así que no hace falta que todos entrenen igual;
+   lo que sí hace falta es que sostengan el registro ocho semanas. */
+const PROGRAMAS = {
+  3: ['fullA','fullB','fullC'],
+  4: ['upperA','lowerA','upperB','lowerB'],
+  5: ['upperA','lowerA','upperB','lowerB','upperC']
+};
+const CALENDARIO = {
+  3: ['Lunes','Miércoles','Viernes'],
+  4: ['Lunes','Martes','Jueves','Viernes'],
+  5: ['Lunes','Martes','Miércoles','Jueves','Viernes']
+};
+const misRutinas = () => PROGRAMAS[D.cfg.dias] || PROGRAMAS[5];
+const GOAL_TXT = {fat_loss:'Pérdida de grasa', recomp:'Recomposición',
+                  muscle_gain:'Ganancia muscular', maintenance:'Mantenimiento'};
 /* Puente entre los nombres de la app y el catálogo de la base (tabla exercises.slug).
    Cada entrada: [slug, rirMin, rirMax]. Si cambias un nombre, actualiza aquí también. */
 const EX_MAP = {
@@ -484,11 +649,66 @@ const EX_MAP = {
 const slugOf   = n => (EX_MAP[n]||[null])[0];
 const rirTgtOf = n => { const e=EX_MAP[n]; return e? [e[1],e[2]] : [1,3]; };
 
-const PLAN = [[75.2,96.0],[74.7,95.2],[74.1,94.3],[73.5,93.0],[73.0,92.3],[72.6,91.5],[72.1,90.8],[71.5,90.0],
+/* Plan original del autor. Sirve de respaldo para su cuenta y para el
+   modo sin cuenta; los participantes nuevos reciben el suyo. */
+const PLAN_BASE = [[75.2,96.0],[74.7,95.2],[74.1,94.3],[73.5,93.0],[73.0,92.3],[72.6,91.5],[72.1,90.8],[71.5,90.0],
 [71.1,89.5],[70.8,89.0],[70.4,88.5],[70.0,88.0],[70.0,88.0],[69.4,87.3],[68.9,86.7],[68.0,86.0],
 [67.7,85.6],[67.4,85.2],[67.1,84.7],[66.5,84.0],[66.2,83.6],[65.9,83.1],[65.5,82.6],[65.0,82.0],[65.0,82.0],[65.0,82.0]];
-const PHASE = w => w<=8?1:w<=16?2:w<=24?3:4;
-const KCAL  = w => w<=8?"2,100":w<=16?(w===12||w===13?"2,400 (diet break)":"2,000"):w<=24?"1,950":"~2,300";
+const FASE_BASE = w => w<=8?1:w<=16?2:w<=24?3:4;
+const KCAL_BASE = w => w<=8?2100:w<=16?(w===12||w===13?2400:2000):w<=24?1950:2300;
+
+/* --------------------------------------------------------------------
+   Plan personalizado
+   Cada participante recibe su propia curva, calculada con sus datos.
+   Tasas semanales según lo habitualmente recomendado: bajar más rápido
+   cuesta músculo, subir más rápido cuesta grasa.
+   -------------------------------------------------------------------- */
+const TASA = {fat_loss:0.0075, recomp:0.0035, muscle_gain:-0.0025, maintenance:0};
+
+function generarPlan(c){
+  const w0 = +c.w0, meta = +c.wGoal || +c.w0, est = +c.height || 170;
+  const edad = c.nac ? Math.max(15, Math.floor((Date.now()-new Date(c.nac+'T00:00:00'))/31557600000)) : 25;
+  const tasa = TASA[c.goal] ?? TASA.recomp;
+  const deficit = {fat_loss:-500, recomp:-250, muscle_gain:250, maintenance:0}[c.goal] ?? -250;
+
+  // Duración: la que tarde en llegar a la meta a esa tasa, entre 8 y 26 semanas
+  let semanas = 12;
+  if (tasa !== 0 && Math.abs(meta - w0) > 0.5) {
+    semanas = Math.ceil(Math.abs(meta - w0) / Math.max(w0 * Math.abs(tasa), 0.05));
+  }
+  semanas = Math.min(26, Math.max(8, semanas));
+
+  // Cuánto baja la cintura por kg perdido. Aproximación gruesa, sirve de referencia.
+  const cmPorKg = c.sexo === 'F' ? 0.9 : 1.1;
+  const cin0 = +c.cin0 || null;
+
+  const plan = [];
+  for (let s = 1; s <= semanas; s++) {
+    const t = s / semanas;
+    const peso = +(w0 + (meta - w0) * t).toFixed(1);
+    const cin  = cin0 ? +(cin0 - (w0 - peso) * cmPorKg).toFixed(1) : null;
+
+    // Mifflin-St Jeor sobre el peso proyectado de esa semana
+    const bmr  = 10*peso + 6.25*est - 5*edad + (c.sexo === 'F' ? -161 : 5);
+    const tdee = bmr * 1.45;
+    // Descanso metabólico a la mitad del plan, si es un plan de déficit largo
+    const pausa = deficit < 0 && semanas >= 16 &&
+                  (s === Math.round(semanas/2) || s === Math.round(semanas/2)+1);
+    const kcal = Math.round((tdee + (pausa ? 0 : deficit)) / 25) * 25;
+    const fase = Math.min(4, Math.ceil(s / (semanas/4)));
+    plan.push([peso, cin, kcal, fase, pausa ? 'pausa' : '']);
+  }
+  return plan;
+}
+
+/* Devuelve el plan vigente: el del participante si ya se dio de alta,
+   si no el original del autor (que es quien ya tiene historial). */
+function PLANV(){
+  if (D.cfg.plan && D.cfg.plan.length) return D.cfg.plan;
+  return PLAN_BASE.map((p,i)=>[p[0], p[1], KCAL_BASE(i+1), FASE_BASE(i+1), (i+1===12||i+1===13)?'pausa':'']);
+}
+const totalSemanas = () => PLANV().length;
+const protMeta = () => Math.round((D.cfg.w0 || 75) * 1.9);
 const KEY = "gymDiary_gabo_v1";
 
 /* Supabase. La clave publicable es segura en el cliente: todo el acceso
@@ -497,7 +717,9 @@ const SUPA_URL = "https://ckvogrrzhdfdubqcwayn.supabase.co";
 const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
 
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
-                      cfg:{start:"2026-08-03",height:166,w0:75.6,consent:false}});
+  cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
+       nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
+       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false}});
 
 let D = load();
 function load(){
@@ -528,7 +750,7 @@ const fmt = d => { const [y,m,dd]=d.split('-'); return dd+'/'+m; };
 function weekOf(dateStr){
   const s = new Date(D.cfg.start+"T00:00:00"), d = new Date(dateStr+"T00:00:00");
   const w = Math.floor((d-s)/(7*864e5))+1;
-  return Math.min(Math.max(w,1),26);
+  return Math.min(Math.max(w,1),totalSemanas());
 }
 function curWeek(){ return weekOf(today()); }
 
@@ -681,45 +903,67 @@ function bodyFat(cin,cue){
 function lastMeasure(){ return D.measures.length?D.measures[D.measures.length-1]:null; }
 
 function render(){
-  const w=curWeek();
-  document.getElementById('hdWeek').textContent=`Semana ${w} de 26 · Fase ${PHASE(w)} · ${KCAL(w)} kcal`;
+  const PL=PLANV(), NS=PL.length, w=Math.min(curWeek(),NS);
+  const tgt=PL[w-1];
+  document.getElementById('hdWeek').textContent=
+    `Semana ${w} de ${NS} · Fase ${tgt[3]} · ${tgt[2].toLocaleString('es-MX')} kcal${tgt[4]==='pausa'?' (descanso metabólico)':''}`;
+  document.getElementById('hdPlan').textContent=
+    (D.cfg.nombre? D.cfg.nombre+' · ' : '') + GOAL_TXT[D.cfg.goal] + ' · ' + NS + ' semanas';
 
   // KPIs
-  const a=avg7(), pa=prevAvg7(), tgt=PLAN[w-1];
+  const a=avg7(), pa=prevAvg7();
   document.getElementById('kAvg').textContent = a? a.toFixed(1)+' kg':'—';
   const dEl=document.getElementById('kAvgD');
   if(a&&pa){ const df=a-pa; dEl.textContent=(df>0?'+':'')+df.toFixed(2)+' kg vs. semana pasada';
     dEl.className='d '+(df<0?'dn':'up'); }
   else dEl.textContent = a? D.weights.length+' registros':'Sin datos';
 
+  const subiendo = D.cfg.goal === 'muscle_gain';
   document.getElementById('kTgt').textContent=tgt[0].toFixed(1)+' kg';
-  document.getElementById('kTgtD').textContent = a? (a<=tgt[0]?'✓ Vas bien':'Estás '+(a-tgt[0]).toFixed(1)+' kg arriba') : 'Semana '+w;
+  document.getElementById('kTgtD').textContent = a
+    ? ((subiendo ? a>=tgt[0] : a<=tgt[0]) ? '✓ Vas bien'
+       : 'Estás '+Math.abs(a-tgt[0]).toFixed(1)+' kg '+(subiendo?'abajo':'arriba'))
+    : 'Semana '+w;
 
   const m=lastMeasure();
+  const cinFin = PL[NS-1][1];
   document.getElementById('kCin').textContent = m&&m.cin? m.cin.toFixed(1)+' cm':'—';
-  document.getElementById('kCinD').textContent = m&&m.cin? 'Objetivo: '+tgt[1].toFixed(1)+' cm':'Meta final: 82 cm';
+  document.getElementById('kCinD').textContent = (m&&m.cin&&tgt[1]!=null)
+    ? 'Objetivo: '+tgt[1].toFixed(1)+' cm'
+    : (cinFin!=null ? 'Meta final: '+cinFin.toFixed(1)+' cm' : 'Registra cintura y cuello');
   const bf = m? bodyFat(m.cin,m.cue):null;
   document.getElementById('kBf').textContent = bf? bf.toFixed(1)+'%':'—';
 
-  // Barras
-  const pk = a? Math.min(100,Math.max(0,(75.6-a)/10.6*100)):0;
+  // Barras de avance, relativas al plan de cada quien
+  const w0=+D.cfg.w0, wFin=PL[NS-1][0], rango=Math.abs(wFin-w0);
+  const pk = (a&&rango>0.2)? Math.min(100,Math.max(0,Math.abs(a-w0)/rango*100)):0;
   document.getElementById('pbPeso').style.width=pk+'%';
-  document.getElementById('pbPesoT').textContent = a
-    ? `Peso: ${(75.6-a).toFixed(1)} kg perdidos de 10.6 · ${pk.toFixed(0)}% del camino · faltan ${(a-65).toFixed(1)} kg`
-    : 'Registra tu peso para empezar.';
-  const pc = m&&m.cin? Math.min(100,Math.max(0,(96.5-m.cin)/14.5*100)):0;
+  document.getElementById('pbPesoT').textContent = !a ? 'Registra tu peso para empezar.'
+    : (rango<=0.2 ? `Peso actual ${a.toFixed(1)} kg · el plan es mantenerlo.`
+       : `${Math.abs(w0-a).toFixed(1)} kg de ${rango.toFixed(1)} · ${pk.toFixed(0)} % del camino · faltan ${Math.abs(a-wFin).toFixed(1)} kg`);
+
+  const cin0=+D.cfg.cin0, rangoC=(cin0&&cinFin!=null)?Math.abs(cin0-cinFin):0;
+  const pc = (m&&m.cin&&rangoC>0.2)? Math.min(100,Math.max(0,Math.abs(cin0-m.cin)/rangoC*100)):0;
   document.getElementById('pbCin').style.width=pc+'%';
-  document.getElementById('pbCinT').textContent = m&&m.cin
-    ? `Cintura: ${(96.5-m.cin).toFixed(1)} cm perdidos de 14.5 · ${pc.toFixed(0)}% del camino · faltan ${(m.cin-82).toFixed(1)} cm`
+  document.getElementById('pbCinT').textContent = (m&&m.cin&&rangoC>0.2)
+    ? `${Math.abs(cin0-m.cin).toFixed(1)} cm de ${rangoC.toFixed(1)} · ${pc.toFixed(0)} % del camino · faltan ${Math.abs(m.cin-cinFin).toFixed(1)} cm`
     : 'Registra tu cintura para empezar.';
 
-  // Semana
+  // Progreso general
+  document.getElementById('pgSub').textContent = (rango>0.2)
+    ? `De ${w0.toFixed(1)} kg a ${wFin.toFixed(1)} kg · ${rango.toFixed(1)} kg en ${NS} semanas`
+    : `Mantener ${w0.toFixed(1)} kg y progresar en cargas · ${NS} semanas`;
+
+  // Semana: se arma con las rutinas del programa que le tocó
   const days=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-  const plan=[['Nado 1,500 m intervalos','Upper A — empuje'],['—','Lower A — fuerza (día alto)'],
-    ['Nado 1,700 m intervalos','Upper B — jale'],['—','Lower B — volumen (día alto)'],
-    ['Nado 1,500 m continuo','Upper C — hombro y brazo'],['—','Zona 2 · 45 min + core'],['—','Descanso · meal prep']];
-  document.getElementById('weekGrid').innerHTML='<div class="tw"><table><tr><th>Día</th><th>AM</th><th>PM</th></tr>'+
-    days.map((d,i)=>`<tr><td><b>${d}</b></td><td style="color:var(--dim)">${plan[i][0]}</td><td>${plan[i][1]}</td></tr>`).join('')+'</table></div>';
+  const cal=CALENDARIO[D.cfg.dias]||CALENDARIO[5], rut=misRutinas(), asign={};
+  cal.forEach((d,i)=>{ if(ROUTINES[rut[i]]) asign[d]=ROUTINES[rut[i]].name; });
+  document.getElementById('weekSub').textContent =
+    `${cal.length} sesiones de pesas por semana · ${protMeta()} g de proteína al día`;
+  document.getElementById('weekGrid').innerHTML='<div class="tw"><table><tr><th>Día</th><th>Sesión</th></tr>'+
+    days.map(d=>`<tr><td><b>${d}</b></td>`+
+      (asign[d]? `<td>${asign[d]}</td>` : '<td style="color:var(--dim)">Descanso</td>')+
+      '</tr>').join('')+'</table></div>';
 
   // Recientes
   const rc=D.workouts.slice(-5).reverse();
@@ -807,9 +1051,12 @@ function render(){
 
   // Tabla plan
   document.getElementById('planTable').innerHTML='<tr><th>Sem</th><th>Fase</th><th>Kcal</th><th>Peso obj.</th><th>Cintura obj.</th><th>Hito</th></tr>'+
-    PLAN.map((p,i)=>{const n=i+1, hit=[4,8,12,16,20,24,26].includes(n)?(n===12||n===13?'Diet break · fotos':n===24?'META · fotos':'Fotos'):'';
-    return `<tr${n===w?' style="background:rgba(78,207,168,.09)"':''}><td>${n}</td><td>${PHASE(n)}</td><td>${KCAL(n)}</td>
-    <td>${p[0].toFixed(1)}</td><td>${p[1].toFixed(1)}</td><td class="pr">${hit}</td></tr>`}).join('');
+    PL.map((p,i)=>{const n=i+1;
+      const hito = p[4]==='pausa' ? 'Descanso metabólico'
+                 : n===NS ? 'META · fotos'
+                 : (n%4===0 ? 'Fotos y medidas' : '');
+      return `<tr${n===w?' style="background:rgba(78,207,168,.09)"':''}><td>${n}</td><td>${p[3]}</td><td>${p[2].toLocaleString('es-MX')}</td>
+      <td>${p[0].toFixed(1)}</td><td>${p[1]!=null?p[1].toFixed(1):'—'}</td><td class="pr">${hito}</td></tr>`}).join('');
 }
 function del(k,i){
   if(!confirm('¿Borrar este registro?')) return;
@@ -848,13 +1095,15 @@ function weeklyAvgWeights(){
   return Object.keys(by).map(k=>[+k, by[k].reduce((a,b)=>a+b,0)/by[k].length]).sort((a,b)=>a[0]-b[0]);
 }
 function drawCharts(){
+  const PL=PLANV();
   const real=weeklyAvgWeights(); const maxW=Math.max(curWeek(), real.length?real[real.length-1][0]:1);
-  const planP=PLAN.slice(0,maxW).map((p,i)=>[i+1,p[0]]);
+  const planP=PL.slice(0,maxW).map((p,i)=>[i+1,p[0]]);
   line('chPeso',[{pts:planP,color:'#8fa8a0',dash:1,w:2},{pts:real,color:'#4ecfa8'}]);
 
   const cin=D.measures.filter(m=>m.cin).map(m=>[weekOf(m.date),m.cin]);
   const maxC=Math.max(curWeek(), cin.length?cin[cin.length-1][0]:1);
-  line('chCin',[{pts:PLAN.slice(0,maxC).map((p,i)=>[i+1,p[1]]),color:'#8fa8a0',dash:1,w:2},{pts:cin,color:'#4ecfa8'}]);
+  const planC=PL.slice(0,maxC).map((p,i)=>[i+1,p[1]]).filter(p=>p[1]!=null);
+  line('chCin',[{pts:planC,color:'#8fa8a0',dash:1,w:2},{pts:cin,color:'#4ecfa8'}]);
 
   const vb={}; D.workouts.forEach(w=>{const k=weekOf(w.date);
     vb[k]=(vb[k]||0)+w.sets.reduce((s,y)=>s+y.w*y.r,0)/1000;});
@@ -880,10 +1129,16 @@ function importData(e){
   r.readAsText(f);
 }
 function saveCfg(){
+  const w0Antes=D.cfg.w0, hAntes=D.cfg.height;
   D.cfg.start=document.getElementById('cfgStart').value||D.cfg.start;
   D.cfg.height=parseFloat(document.getElementById('cfgH').value)||D.cfg.height;
   D.cfg.w0=parseFloat(document.getElementById('cfgW0').value)||D.cfg.w0;
-  save(); render(); toast('Configuración guardada');
+  // Si cambió el punto de partida, la curva y las calorías dejan de tener sentido
+  if(D.cfg.alta && (D.cfg.w0!==w0Antes || D.cfg.height!==hAntes)){
+    D.cfg.plan = generarPlan(D.cfg);
+    toast('Plan recalculado con los datos nuevos');
+  } else toast('Configuración guardada');
+  save(); init();
 }
 function wipe(){
   if(!confirm('¿Borrar TODOS los registros de ESTE dispositivo?\n\nSi tienes sesión iniciada, la copia en la nube NO se borra: al sincronizar volverán. Para borrarlos de verdad, cierra sesión antes.')) return;
@@ -981,10 +1236,30 @@ async function loadProfile(){
   if(!data) return;
   document.getElementById('cfgConsent').checked = !!data.research_consent;
   D.cfg.consent = !!data.research_consent;
+  if(data.display_name)      D.cfg.nombre = data.display_name;
+  if(data.sex)               D.cfg.sexo   = data.sex;
+  if(data.birth_date)        D.cfg.nac    = data.birth_date;
   if(data.height_cm)         D.cfg.height = +data.height_cm;
   if(data.plan_start)        D.cfg.start  = data.plan_start;
   if(data.initial_weight_kg) D.cfg.w0     = +data.initial_weight_kg;
+  if(data.target_weight_kg)  D.cfg.wGoal  = +data.target_weight_kg;
+  if(data.goal)              D.cfg.goal   = data.goal;
+  if(data.training_days_per_week) D.cfg.dias = data.training_days_per_week;
+
+  // Ya se había dado de alta en otro dispositivo: no repetir el cuestionario
+  if(data.onboarded_at){
+    D.cfg.alta = true;
+    obOcultar();
+    if(!D.cfg.plan || !D.cfg.plan.length){
+      const {data:pt}=await SB.from('plan_targets').select('*').order('week');
+      D.cfg.plan = (pt && pt.length)
+        ? pt.map(r=>[+r.target_weight_kg, r.target_waist_cm!=null?+r.target_waist_cm:null,
+                     r.kcal_target, r.phase, r.milestone||''])
+        : generarPlan(D.cfg);
+    }
+  }
   save(true);
+  init();
 }
 
 async function saveConsent(){
@@ -1003,9 +1278,7 @@ async function pushLocalToCloud(){
   const u=SESSION.user.id;
   setSync('','Subiendo...');
   try{
-    await SB.from('profiles').update({
-      height_cm:D.cfg.height, plan_start:D.cfg.start, initial_weight_kg:D.cfg.w0
-    }).eq('id',u);
+    await guardarPerfil();
 
     // Se filtran los registros incompletos: Postgres rechaza los NOT NULL vacíos
     const bwRows=D.weights.filter(x=>x.date&&x.kg!=null)
@@ -1141,20 +1414,211 @@ async function remoteDelete(kind, rec){
   }catch(e){}
 }
 
+/* ====================================================================
+   ALTA DE PARTICIPANTE
+   Un usuario nuevo no debe aterrizar en el plan de otra persona. Este
+   cuestionario arma su curva de peso, sus calorías y su programa de
+   entrenamiento a partir de sus propios datos.
+   ==================================================================== */
+let obPaso = 0;
+const obEl = id => document.getElementById(id);
+const obMostrar = () => obEl('onboard').classList.add('on');
+const obOcultar = () => obEl('onboard').classList.remove('on');
+const obGoal = () => (document.querySelector('#obGoals .opt.sel')||{dataset:{}}).dataset.g || 'recomp';
+const obDiasSel = () => +((document.querySelector('#obDias .opt.sel')||{dataset:{}}).dataset.d || 4);
+
+function obErr(p, msg){ const e=obEl('obErr'+p); if(e) e.textContent = msg||''; return !msg; }
+
+function obIr(n){
+  if(n > obPaso && !obValidar(obPaso)) return;
+  obPaso = n;
+  document.querySelectorAll('.obstep').forEach(s=>s.classList.remove('on'));
+  obEl('ob'+n).classList.add('on');
+  document.querySelectorAll('.obbar i').forEach((b,i)=>b.classList.toggle('on', i<=n));
+  if(n===5) obResumen();
+  obEl('onboard').scrollTop = 0;
+}
+
+function obValidar(p){
+  if(p===1){
+    if(!obEl('obNombre').value.trim()) return obErr(1,'Escribe un nombre para poder saludarte.');
+    return obErr(1,'');
+  }
+  if(p===2){
+    const est=parseFloat(obEl('obEst').value), pes=parseFloat(obEl('obPeso').value);
+    if(!(est>=120&&est<=230)) return obErr(2,'Revisa la estatura: va en centímetros.');
+    if(!(pes>=30&&pes<=250))  return obErr(2,'Revisa el peso: va en kilogramos.');
+    return obErr(2,'');
+  }
+  if(p===3){
+    const g=obGoal(), pes=parseFloat(obEl('obPeso').value);
+    if(g!=='maintenance'){
+      const meta=parseFloat(obEl('obMeta').value);
+      if(!(meta>=30&&meta<=250)) return obErr(3,'Escribe el peso al que quieres llegar.');
+      if(g==='muscle_gain' && meta<=pes) return obErr(3,'Para ganar músculo la meta debe ser mayor que tu peso actual.');
+      if(g!=='muscle_gain' && meta>=pes) return obErr(3,'Para bajar grasa la meta debe ser menor que tu peso actual.');
+      if(Math.abs(meta-pes) > pes*0.30)
+        return obErr(3,'Esa diferencia no es realista en un plan de este tamaño. Plantea una meta intermedia y la vuelves a ajustar al llegar.');
+    }
+    return obErr(3,'');
+  }
+  return true;
+}
+
+function obOpciones(cont){
+  const c=obEl(cont);
+  c.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{
+    c.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+    o.classList.add('sel');
+    if(cont==='obGoals') obEl('obMetaRow').style.display = o.dataset.g==='maintenance'?'none':'';
+  }));
+}
+
+function obCfg(){
+  const g=obGoal(), pes=parseFloat(obEl('obPeso').value);
+  return {
+    nombre: obEl('obNombre').value.trim(),
+    sexo:   obEl('obSexo').value,
+    nac:    obEl('obNac').value || null,
+    height: parseFloat(obEl('obEst').value),
+    w0:     pes,
+    cin0:   parseFloat(obEl('obCin').value) || null,
+    goal:   g,
+    wGoal:  g==='maintenance' ? pes : parseFloat(obEl('obMeta').value),
+    dias:   obDiasSel(),
+    expMeses: +obEl('obExp').value,
+    start:  today()
+  };
+}
+
+function obResumen(){
+  const c=obCfg(), plan=generarPlan(c), fin=plan[plan.length-1];
+  const rut=PROGRAMAS[c.dias].map(k=>ROUTINES[k].name).join(' · ');
+  const filas=[
+    ['Objetivo', GOAL_TXT[c.goal]],
+    ['Duración', plan.length+' semanas'],
+    ['Peso', c.w0.toFixed(1)+' kg → '+fin[0].toFixed(1)+' kg'],
+    ['Calorías al inicio', plan[0][2].toLocaleString('es-MX')+' kcal'],
+    ['Proteína al día', Math.round(c.w0*1.9)+' g'],
+    ['Entrenamiento', c.dias+' días por semana'],
+    ['Rutinas', rut]
+  ];
+  obEl('obResumen').innerHTML=filas.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+}
+
+async function obCrear(){
+  const email=obEl('obEmail').value.trim(), pass=obEl('obPass').value;
+  if(!email.includes('@') || pass.length<6)
+    return obErr(0,'Necesito un correo válido y una contraseña de al menos 6 caracteres.');
+  if(!SB) return obErr(0,'No hay conexión con el servidor. Puedes continuar sin cuenta y sincronizar después.');
+  obErr(0,'Creando cuenta…');
+  const {error}=await SB.auth.signUp({email,password:pass});
+  if(error) return obErr(0,error.message);
+  obErr(0,''); obIr(1);
+}
+
+async function obEntrar(){
+  const email=obEl('obEmail').value.trim(), pass=obEl('obPass').value;
+  if(!SB) return obErr(0,'No hay conexión con el servidor.');
+  const {error}=await SB.auth.signInWithPassword({email,password:pass});
+  if(error) return obErr(0,error.message);
+  obErr(0,'');
+  // Si ya se había dado de alta, loadProfile cierra este panel solo.
+  setTimeout(()=>{ if(!D.cfg.alta) obIr(1); }, 900);
+}
+
+function obSaltar(){ obIr(1); }
+
+async function obTerminar(){
+  const c=obCfg();
+  c.consent = obEl('obConsentChk').checked;
+  c.plan    = generarPlan(c);
+  c.alta    = true;
+  Object.assign(D.cfg, c);
+
+  // El primer registro queda hecho: peso de hoy y, si las dio, medidas
+  upsert(D.weights, {date:today(), kg:c.w0});
+  const cue=parseFloat(obEl('obCue').value)||null;
+  if(c.cin0 || cue) upsert(D.measures, {date:today(), cin:c.cin0, cue,
+                                        pec:null, bra:null, mus:null, cad:null});
+  save(true);
+  obOcultar();
+  init();
+  if(SB && SESSION){ await guardarPerfil(); syncNow().catch(()=>{}); }
+  toast('Listo' + (c.nombre?', '+c.nombre:'') + '. Tu plan está armado.');
+}
+
+/* Sube el perfil y la curva del plan a la base.
+   Solo manda los campos que tienen valor: enviar null borraría en el
+   servidor datos que este dispositivo simplemente no conoce. */
+async function guardarPerfil(){
+  if(!SB || !SESSION) return;
+  const c=D.cfg, n=(c.plan||[]).length, pl={};
+  const set=(k,v)=>{ if(v!==null && v!==undefined && v!=='') pl[k]=v; };
+
+  set('display_name', c.nombre);
+  set('sex', c.sexo);
+  set('birth_date', c.nac);
+  set('height_cm', c.height);
+  set('plan_start', c.start);
+  set('initial_weight_kg', c.w0);
+  set('target_weight_kg', c.wGoal);
+  set('goal', c.goal);
+  set('training_days_per_week', c.dias);
+  if(n){
+    set('plan_weeks', n);
+    set('target_waist_cm', c.plan[n-1][1]);
+  }
+  if(c.expMeses !== undefined && c.expMeses !== null)
+    set('training_since', new Date(Date.now() - c.expMeses*2629800000).toISOString().slice(0,10));
+  pl.research_consent = !!c.consent;
+  // onboarded_at solo se escribe al completar el alta; nunca se borra desde aquí
+  if(c.alta) pl.onboarded_at = new Date().toISOString();
+
+  try{
+    await SB.from('profiles').update(pl).eq('id', SESSION.user.id);
+
+    if(n) await SB.from('plan_targets').upsert(
+      c.plan.map((p,i)=>({user_id:SESSION.user.id, week:i+1, phase:p[3],
+        target_weight_kg:p[0], target_waist_cm:p[1], kcal_target:p[2],
+        milestone:p[4]||null})),
+      {onConflict:'user_id,week'});
+  }catch(e){ /* la sincronización lo reintenta */ }
+}
+
+/* ¿Hay que mostrar el alta? Solo a quien no tiene nada todavía. */
+function quizaAlta(){
+  if(D.cfg.alta) return;
+  if(D.workouts.length || D.weights.length > 3) return;   // cuenta con historial previo
+  obMostrar();
+}
+
 /* ============ INIT ============ */
 function init(){
   ['qDate','wDate','pDate','mDate','sDate','nDate'].forEach(i=>document.getElementById(i).value=today());
-  const sel=document.getElementById('wRoutine');
-  sel.innerHTML=Object.keys(ROUTINES).map(k=>`<option value="${k}">${ROUTINES[k].name}</option>`).join('');
+
+  // Solo las rutinas del programa que le corresponde por días de entrenamiento
+  const sel=document.getElementById('wRoutine'), previa=sel.value, rut=misRutinas();
+  sel.innerHTML=rut.map(k=>`<option value="${k}">${ROUTINES[k].name}</option>`).join('');
+  if(rut.includes(previa)) sel.value=previa;
+
   document.getElementById('cfgStart').value=D.cfg.start;
   document.getElementById('cfgH').value=D.cfg.height;
   document.getElementById('cfgW0').value=D.cfg.w0;
   document.getElementById('cfgConsent').checked=!!D.cfg.consent;
-  // Prellena el objetivo calórico de la semana según el plan
-  document.getElementById('nTarget').value=(KCAL(curWeek())||'').replace(/[^\d]/g,'')||'';
+
+  // Prellena el objetivo calórico de la semana según el plan vigente
+  const PL=PLANV(), sem=Math.min(curWeek(), PL.length);
+  document.getElementById('nTarget').value = PL[sem-1][2] || '';
+
+  document.title = 'Diario de Entrenamiento' + (D.cfg.nombre ? ' · '+D.cfg.nombre : '');
   renderExercises(); render(); drawCharts();
 }
+
+obOpciones('obGoals');
+obOpciones('obDias');
 init();
+quizaAlta();
 initSupabase();
 
 /* ============ PWA ============ */
