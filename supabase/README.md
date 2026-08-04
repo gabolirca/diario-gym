@@ -23,17 +23,27 @@ sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX
 > La clave publicable puede estar en el repo: no da acceso a nada que las políticas RLS
 > no permitan. La que **nunca** debe subirse es la `service_role`.
 
-## Bajar las migraciones al repo
+## Migraciones
+
+Las 12 migraciones ya están en `supabase/migrations/`, con los mismos timestamps que el
+historial del servidor. **No hace falta correr `db pull`**: los archivos se verificaron
+uno por uno contra el arreglo `statements` que Supabase guardó al aplicarlas, y las 12
+coinciden carácter por carácter. Reconstruyen el esquema exacto que está en producción.
+
+Para conectar el CLI (solo si vas a hacer cambios al esquema desde ahora):
 
 ```bash
-npx supabase login
+npx supabase init          # genera config.toml · responde N a lo de Deno/VS Code
+npx supabase login         # abre el navegador
 npx supabase link --project-ref ckvogrrzhdfdubqcwayn
-npx supabase db pull
+npx supabase migration list   # local y remoto deben aparecer alineados
 ```
 
-Eso escribe los 10 archivos en `supabase/migrations/`. A partir de ahí, cualquier cambio
-al esquema se hace con `npx supabase migration new <nombre>` y se aplica con
-`npx supabase db push`.
+`link` pide la contraseña de la base. Si no la recuerdas, se reinicia en el panel:
+Project Settings → Database → Reset database password.
+
+De ahí en adelante: `npx supabase migration new <nombre>` para crear una, y
+`npx supabase db push` para aplicarla.
 
 ## Migraciones aplicadas
 
@@ -72,9 +82,23 @@ Los datos de prueba se eliminaron. El catálogo global quedó intacto.
 
 ## Reconstruir desde cero
 
+Si el proyecto desapareciera, se levanta otro y se aplican las migraciones en orden:
+
+```bash
+npx supabase link --project-ref <nuevo-ref>
+npx supabase db push
+```
+
+Sobre el proyecto actual, para borrar y rehacer:
+
 ```bash
 npx supabase db reset --linked   # ⚠️ borra todos los datos
 ```
+
+> El trigger `on_auth_user_created` vive en el esquema `auth`, que `db pull` no captura.
+> Por eso conviene conservar estas migraciones escritas a mano en lugar de un volcado
+> automático: la 01 sí lo incluye. El archivo `PEGAR_DESPUES_DEL_PULL.sql` solo hace
+> falta si en algún momento regeneras el historial con `db pull`.
 
 ## Verificación rápida
 
