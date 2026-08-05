@@ -1,5 +1,5 @@
 /* Service worker: cachea la app para que funcione sin internet. */
-const CACHE = 'diario-gym-v5';
+const CACHE = 'diario-gym-v6';
 const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

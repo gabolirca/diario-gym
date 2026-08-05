@@ -295,7 +295,7 @@ button.btn.sm{min-height:34px}
   <button data-t="pesas">Pesas</button>
   <button data-t="cuerpo">Peso y medidas</button>
   <button data-t="comida">Comida</button>
-  <button data-t="nado">Natación</button>
+  <button data-t="nado" id="navNado" style="display:none">Natación</button>
   <button data-t="prog">Progreso</button>
   <button data-t="datos">Datos</button>
 </nav>
@@ -529,6 +529,18 @@ button.btn.sm{min-height:34px}
   </div>
 
   <div class="card">
+    <h2>Secciones opcionales</h2>
+    <p class="sub">Actívalas solo si las vas a usar. Menos pestañas, menos ruido.</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="cfgNado" style="width:auto" onchange="toggleNado()">
+      <label for="cfgNado" style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)">
+        Registrar natación
+      </label>
+    </div>
+    <div class="note">Si la apagas teniendo sesiones guardadas, no se borran: solo se oculta la pestaña.</div>
+  </div>
+
+  <div class="card">
     <h2>Consentimiento de investigación</h2>
     <p class="sub">Este proyecto usa datos de entrenamiento para entrenar un modelo predictivo. Tu participación es voluntaria y puedes retirarla cuando quieras.</p>
     <div style="display:flex;align-items:center;gap:10px">
@@ -720,7 +732,7 @@ const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false}});
+       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false}});
 
 let D = load();
 function load(){
@@ -729,9 +741,12 @@ function load(){
     const r = localStorage.getItem(KEY);
     if(r){
       const o = JSON.parse(r);
+      const teniaNado = o.cfg && Object.prototype.hasOwnProperty.call(o.cfg,'nado');
       // Normaliza respaldos viejos que no traían todas las colecciones
       for(const k of Object.keys(base)) if(o[k]===undefined) o[k] = base[k];
       o.cfg = Object.assign({}, base.cfg, o.cfg||{});
+      // Quien ya venía registrando natación la conserva encendida
+      if(!teniaNado) o.cfg.nado = !!(o.swims && o.swims.length);
       return o;
     }
   }catch(e){}
@@ -1267,6 +1282,23 @@ async function loadProfile(){
   init();
 }
 
+/* La natación es opcional: la mayoría de los participantes no nada, y una
+   pestaña que no usan es ruido. Los datos nunca se borran al apagarla. */
+function aplicarNado(){
+  const on = !!D.cfg.nado || D.swims.length > 0;
+  document.getElementById('navNado').style.display = on ? '' : 'none';
+  document.getElementById('cfgNado').checked = !!D.cfg.nado;
+  // Si estaba viéndola y se apagó, regresa al panel
+  if(!on && document.getElementById('t-nado').classList.contains('on')){
+    document.querySelector('nav button[data-t="panel"]').click();
+  }
+}
+function toggleNado(){
+  D.cfg.nado = document.getElementById('cfgNado').checked;
+  save(); aplicarNado();
+  toast(D.cfg.nado ? 'Natación activada' : 'Natación oculta');
+}
+
 async function saveConsent(){
   const v=document.getElementById('cfgConsent').checked;
   D.cfg.consent=v; save(true);
@@ -1644,6 +1676,7 @@ function init(){
   document.getElementById('nTarget').value = PL[sem-1][2] || '';
 
   document.title = 'Diario de Entrenamiento' + (D.cfg.nombre ? ' · '+D.cfg.nombre : '');
+  aplicarNado();
   renderExercises(); render(); drawCharts();
 }
 
