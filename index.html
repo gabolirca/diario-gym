@@ -259,6 +259,7 @@ button.btn.sm{min-height:34px}
     <h1>Tu plan</h1>
     <p class="lead">Calculado con tus datos. Podrás ajustarlo después desde la pestaña Datos.</p>
     <div class="resumen" id="obResumen"></div>
+    <div class="note" id="obAviso" style="display:none;background:rgba(232,163,61,.09);border:1px solid var(--warn);border-radius:9px;padding:12px 14px;margin-top:12px"></div>
     <div class="note" style="margin-bottom:18px">Las calorías salen de la ecuación de Mifflin-St Jeor ajustada por tu actividad. Es una estimación: si en tres semanas tu peso no se mueve como el plan dice, se ajusta.</div>
 
     <h3 style="font-size:15px;color:var(--acc);margin:22px 0 8px">Participación en el estudio</h3>
@@ -1508,7 +1509,25 @@ function obResumen(){
     ['Rutinas', rut]
   ];
   obEl('obResumen').innerHTML=filas.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+
+  // Aviso honesto sobre el estado de la cuenta
+  const av=obEl('obAviso');
+  if(obCorreoPendiente){
+    av.style.display='';
+    av.innerHTML='<b>Falta confirmar tu correo.</b> Te llegó un enlace: ábrelo y luego entra desde la pestaña Datos. '+
+                 'Mientras tanto puedes empezar a registrar — tus datos se guardan en este dispositivo y suben solos al confirmar.';
+  } else if(!SESSION){
+    av.style.display='';
+    av.innerHTML='<b>Vas a empezar sin cuenta.</b> Tus datos se quedan solo en este navegador. '+
+                 'Puedes crear la cuenta después desde la pestaña Datos y subirlos con «Subir historial local».';
+  } else av.style.display='none';
 }
+
+/* Supabase puede exigir confirmar el correo. En ese caso signUp NO
+   devuelve sesión: el participante llena todo, se guarda en local, y no
+   sube nada hasta que abra el enlace. Hay que decírselo, no dejarlo
+   creer que ya quedó sincronizado. */
+let obCorreoPendiente = false;
 
 async function obCrear(){
   const email=obEl('obEmail').value.trim(), pass=obEl('obPass').value;
@@ -1516,9 +1535,12 @@ async function obCrear(){
     return obErr(0,'Necesito un correo válido y una contraseña de al menos 6 caracteres.');
   if(!SB) return obErr(0,'No hay conexión con el servidor. Puedes continuar sin cuenta y sincronizar después.');
   obErr(0,'Creando cuenta…');
-  const {error}=await SB.auth.signUp({email,password:pass});
+  const {data,error}=await SB.auth.signUp({email,password:pass});
   if(error) return obErr(0,error.message);
-  obErr(0,''); obIr(1);
+  obCorreoPendiente = !data.session;
+  obErr(0,'');
+  if(obCorreoPendiente) toast('Te mandamos un correo para confirmar la cuenta');
+  obIr(1);
 }
 
 async function obEntrar(){
@@ -1548,8 +1570,14 @@ async function obTerminar(){
   save(true);
   obOcultar();
   init();
-  if(SB && SESSION){ await guardarPerfil(); syncNow().catch(()=>{}); }
-  toast('Listo' + (c.nombre?', '+c.nombre:'') + '. Tu plan está armado.');
+  if(SB && SESSION){
+    await guardarPerfil(); syncNow().catch(()=>{});
+    toast('Listo' + (c.nombre?', '+c.nombre:'') + '. Tu plan está armado.');
+  } else {
+    // Sin sesión el perfil no sube; se sincroniza en cuanto inicie sesión
+    toast(obCorreoPendiente ? 'Plan listo. Confirma tu correo para respaldarlo.'
+                            : 'Plan listo. Se guarda en este dispositivo.');
+  }
 }
 
 /* Sube el perfil y la curva del plan a la base.
