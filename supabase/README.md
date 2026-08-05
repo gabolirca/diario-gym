@@ -62,6 +62,29 @@ De ahí en adelante: `npx supabase migration new <nombre>` para crear una, y
 | 11 | `client_uid_for_offline_sync` | `client_uid` en `workouts` y `swims` para sincronización idempotente |
 | 12 | `client_uid_not_null_unique` | Corrección: restricción única plena (la parcial rompía el `upsert` del cliente) |
 | 13 | `onboarding_fields_and_fullbody_routines` | Campos de alta en `profiles` y 3 rutinas de cuerpo completo para quien entrena 3 días |
+| 14 | `admin_role_and_monitoring_views` | `is_admin` y políticas de lectura para el investigador |
+| 15 | `admin_dashboard_views` | Vistas del panel: participantes, progreso semanal y por ejercicio |
+| 16 | `move_es_admin_to_private_schema` | `es_admin()` fuera del esquema expuesto por la API |
+
+## Panel del estudio
+
+`panel.html` es la vista del investigador. **No lleva llave `service_role`**: el sitio es
+estático y público, y esa llave saltaría toda la seguridad. En su lugar la base marca
+quién es investigador y le concede **solo lectura**.
+
+Para darte acceso, después de crear tu cuenta en la app:
+
+```sql
+update public.profiles set is_admin = true
+ where id = (select id from auth.users where email = 'tu@correo.com');
+```
+
+Verificado bajo el rol `authenticated` con JWT real:
+
+- El investigador ve a todos los participantes y sus sesiones ✓
+- Un participante solo se ve a sí mismo (1 perfil, sus propias filas) ✓
+- El investigador **no puede escribir**: `update` sobre datos ajenos afecta 0 filas ✓
+- Linter de seguridad: 0 avisos ✓
 
 Verificado con el linter de Supabase: **0 avisos de seguridad**.
 
