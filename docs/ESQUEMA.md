@@ -1,7 +1,7 @@
 # Esquema de datos · GymAI
 
 Diseño de la base que sustenta el modelo predictivo de progresión de cargas.
-Fase 2 del proyecto. 14 tablas, 6 vistas, RLS en todas.
+14 tablas, 9 vistas, RLS en todas.
 
 ---
 
@@ -125,6 +125,9 @@ cuántas veces la capa de seguridad tuvo que corregir al modelo.
 | `v_body_fat` | % de grasa por fórmula Navy |
 | `v_weekly_volume` | Tonelaje semanal (gráfica `chVol`) |
 | `v_personal_records` | Récords (tabla `prTable`) |
+| `v_admin_participantes` | Panel: adherencia, % de RIR y consentimiento por participante |
+| `v_admin_progreso` | Panel: tonelaje y 1RM estimado por semana |
+| `v_admin_ejercicios` | Panel: 1RM inicial contra máximo, por ejercicio |
 
 ### `v_ml_dataset`
 
@@ -160,6 +163,16 @@ Las vistas usan `security_invoker = on`, así que respetan las políticas de qui
 consulta y no las del creador. Las funciones de trigger tienen `search_path` fijo y
 `EXECUTE` revocado de `anon` y `authenticated`, para que no sean invocables por la API
 REST.
+
+**Investigador.** `profiles.is_admin` concede **solo lectura** sobre los datos del
+estudio. Las políticas lo resuelven con `private.es_admin()`, una función
+`SECURITY DEFINER` en un esquema que PostgREST no expone — consultar `profiles` desde una
+política sobre `profiles` causaría recursión infinita, y dejarla en `public` la publicaría
+como endpoint. El panel **no usa la llave `service_role`**: el sitio es estático y público.
+
+Verificado con JWT real bajo el rol `authenticated`: el investigador lee a todos los
+participantes, cada participante se ve solo a sí mismo, y un `update` del investigador
+sobre datos ajenos modifica 0 filas.
 
 Linter de Supabase: 0 avisos de seguridad.
 
@@ -204,6 +217,11 @@ Hecho:
 5. Consentimiento de investigación conectado a `profiles.research_consent`.
 6. Alta guiada de participantes: cuenta, cuestionario, plan calculado y rutinas asignadas
    según los días que cada quien pueda entrenar.
+7. Borrador de sesión: lo capturado se guarda en el dispositivo mientras se entrena y se
+   restaura si la app se cierra antes de guardar.
+8. Rutina propia con diagnóstico por reglas, para participantes con 3+ años de experiencia.
+9. Panel del investigador (`panel.html`) con acceso de solo lectura, vía `profiles.is_admin`
+   y la función `private.es_admin()`.
 
 Pendiente:
 
