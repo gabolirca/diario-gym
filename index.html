@@ -91,6 +91,23 @@ tr:last-child td{border-bottom:none}
 .setlbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;text-align:center}
 .setlbl span.rir{color:var(--acc)}
 
+/* --- Contraseña visible --- */
+.pw{position:relative}
+.pw input{padding-right:74px}
+.pw .ojo{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;
+  color:var(--dim);font-size:11px;cursor:pointer;padding:9px 10px;font-family:inherit;
+  text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.pw .ojo:hover{color:var(--acc)}
+.enlace{background:none;border:none;color:var(--acc);font-family:inherit;font-size:13px;
+  cursor:pointer;padding:0;text-decoration:underline}
+
+/* --- Restablecer contraseña --- */
+#recu{position:fixed;inset:0;background:rgba(15,28,25,.96);z-index:300;display:none;overflow-y:auto}
+#recu.on{display:block}
+#recu .caja{max-width:420px;margin:14vh auto;padding:0 18px}
+#recu h1{font-size:21px;margin:0 0 6px}
+#recu p{color:var(--dim);font-size:14px;line-height:1.6;margin:0 0 20px}
+
 /* --- Marca y borrador --- */
 .marca{display:flex;align-items:center;gap:11px}
 .marca img{width:42px;height:42px;border-radius:10px;flex:none;object-fit:cover}
@@ -191,6 +208,19 @@ button.btn.sm{min-height:34px}
 </head>
 <body>
 
+<!-- ================= RESTABLECER CONTRASEÑA ================= -->
+<div id="recu">
+  <div class="caja">
+    <h1>Elige una contraseña nueva</h1>
+    <p>Abriste el enlace que te llegó por correo. Escribe la contraseña que quieras usar de ahora en adelante.</p>
+    <div style="margin-bottom:16px"><label>Contraseña nueva (mínimo 6 caracteres)</label>
+      <div class="pw"><input type="password" id="recuPass" autocomplete="new-password">
+        <button type="button" class="ojo" onclick="verPass(this,'recuPass')">Ver</button></div></div>
+    <button class="btn" style="width:100%" onclick="guardarPassNueva()">Guardar contraseña</button>
+    <div class="err" id="recuErr"></div>
+  </div>
+</div>
+
 <!-- ================= ALTA DE PARTICIPANTE ================= -->
 <div id="onboard">
  <div class="obwrap">
@@ -204,11 +234,16 @@ button.btn.sm{min-height:34px}
     <p class="lead">Registra tus series, tu esfuerzo y tu comida. La app aprende de tu historial y va ajustando las cargas contigo.<br><br>
       Crea una cuenta para que tus datos se guarden y los veas desde cualquier dispositivo.</p>
     <div class="row"><div><label>Correo</label><input type="email" id="obEmail" placeholder="tu@correo.com" autocomplete="email"></div></div>
-    <div class="row"><div><label>Contraseña (mínimo 6 caracteres)</label><input type="password" id="obPass" placeholder="••••••••" autocomplete="new-password"></div></div>
+    <div class="row"><div><label>Contraseña (mínimo 6 caracteres)</label>
+      <div class="pw"><input type="password" id="obPass" placeholder="••••••••" autocomplete="new-password">
+        <button type="button" class="ojo" onclick="verPass(this,'obPass')">Ver</button></div></div></div>
     <div class="err" id="obErr0"></div>
     <div class="obnav">
       <button class="btn" onclick="obCrear()">Crear cuenta</button>
       <button class="btn gh" onclick="obEntrar()">Ya tengo cuenta</button>
+    </div>
+    <div style="margin-top:12px">
+      <button class="enlace" onclick="pedirRecuperacion('obEmail','obErr0')">¿Olvidaste tu contraseña?</button>
     </div>
     <div class="note">¿Solo quieres probar? <a href="#" onclick="obSaltar();return false" style="color:var(--acc)">Usar sin cuenta</a> — los datos se quedan en este navegador.</div>
   </div>
@@ -572,12 +607,18 @@ button.btn.sm{min-height:34px}
     <div id="authOut">
       <div class="authrow">
         <div><label>Correo</label><input type="email" id="auEmail" placeholder="tu@correo.com" autocomplete="email"></div>
-        <div><label>Contraseña</label><input type="password" id="auPass" placeholder="••••••••" autocomplete="current-password"></div>
+        <div><label>Contraseña</label>
+          <div class="pw"><input type="password" id="auPass" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" class="ojo" onclick="verPass(this,'auPass')">Ver</button></div></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
         <button class="btn" onclick="doSignIn()">Entrar</button>
         <button class="btn gh" onclick="doSignUp()">Crear cuenta</button>
       </div>
+      <div style="margin-top:12px">
+        <button class="enlace" onclick="pedirRecuperacion('auEmail','auErr')">¿Olvidaste tu contraseña?</button>
+      </div>
+      <div class="err" id="auErr"></div>
     </div>
 
     <div id="authIn" style="display:none">
@@ -1600,9 +1641,21 @@ async function initSupabase(){
   }catch(e){
     setSync('off','Modo local · sin conexión'); return;
   }
+  // Si viene de un enlace de recuperación, primero se elige la contraseña
+  if(/type=recovery/.test(location.hash)){
+    obOcultar();
+    document.getElementById('recu').classList.add('on');
+  }
   const {data} = await SB.auth.getSession();
   await onSession(data.session);
-  SB.auth.onAuthStateChange((_e,s)=>{ onSession(s); });
+  SB.auth.onAuthStateChange((ev,s)=>{
+    if(ev === 'PASSWORD_RECOVERY'){
+      obOcultar();
+      document.getElementById('recu').classList.add('on');
+      return;                      // no seguir al panel hasta que elija contraseña
+    }
+    onSession(s);
+  });
 }
 
 async function onSession(s){
@@ -1621,6 +1674,47 @@ async function onSession(s){
     inn.style.display='none'; out.style.display='';
     setSync('off','Modo local');
   }
+}
+
+/* Ver la contraseña mientras se escribe. Un campo de contraseña a ciegas
+   en un teléfono es la vía rápida a quedarse fuera de la cuenta. */
+function verPass(btn, id){
+  const el = document.getElementById(id);
+  const mostrar = el.type === 'password';
+  el.type = mostrar ? 'text' : 'password';
+  btn.textContent = mostrar ? 'Ocultar' : 'Ver';
+}
+
+/* Enlace de recuperación por correo */
+async function pedirRecuperacion(idCorreo, idErr){
+  const campo = document.getElementById(idCorreo);
+  const email = (campo ? campo.value : '').trim();
+  const decir = (m, bien) => {
+    const e = idErr && document.getElementById(idErr);
+    if(e){ e.textContent = m; e.style.color = bien ? 'var(--acc)' : ''; }
+    if(!e || bien) toast(m);
+  };
+  if(!email.includes('@')) return decir('Escribe tu correo arriba y vuelve a tocar el enlace.');
+  if(!SB) return decir('Sin conexión con el servidor.');
+  const {error} = await SB.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname
+  });
+  if(error) return decir(error.message);
+  decir('Enlace enviado a ' + email + '. Revisa también la carpeta de spam y ábrelo en este mismo dispositivo.', true);
+}
+
+async function guardarPassNueva(){
+  const p = document.getElementById('recuPass').value;
+  const e = document.getElementById('recuErr');
+  if(p.length < 6) return e.textContent = 'La contraseña necesita al menos 6 caracteres.';
+  if(!SB) return e.textContent = 'Sin conexión con el servidor.';
+  e.textContent = 'Guardando…';
+  const {error} = await SB.auth.updateUser({password: p});
+  if(error) return e.textContent = error.message;
+  document.getElementById('recu').classList.remove('on');
+  document.getElementById('recuPass').value = '';
+  try{ history.replaceState(null, '', location.pathname); }catch(x){}
+  toast('Contraseña actualizada');
 }
 
 async function doSignUp(){

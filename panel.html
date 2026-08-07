@@ -74,6 +74,14 @@ tr:last-child td{border-bottom:none}
 .alerta b{color:var(--ink)}
 
 #login{max-width:400px;margin:12vh auto;padding:0 18px}
+.pw{position:relative}
+.pw input{padding-right:74px}
+.pw .ojo{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;
+  color:var(--dim);font-size:11px;cursor:pointer;padding:9px 10px;font-family:inherit;
+  text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.pw .ojo:hover{color:var(--acc)}
+.enlace{background:none;border:none;color:var(--acc);font-family:inherit;font-size:13px;
+  cursor:pointer;padding:0;text-decoration:underline}
 #login h1{font-size:23px;margin:0 0 6px}
 #login p{color:var(--dim);font-size:14px;margin:0 0 22px;line-height:1.6}
 #app{display:none}
@@ -90,8 +98,13 @@ tr:last-child td{border-bottom:none}
   <h1>Panel del estudio</h1>
   <p>Acceso restringido al investigador responsable. Los participantes usan la aplicación normal.</p>
   <div style="margin-bottom:14px"><label>Correo</label><input type="email" id="email" autocomplete="email"></div>
-  <div style="margin-bottom:18px"><label>Contraseña</label><input type="password" id="pass" autocomplete="current-password"></div>
+  <div style="margin-bottom:18px"><label>Contraseña</label>
+    <div class="pw"><input type="password" id="pass" autocomplete="current-password">
+      <button type="button" class="ojo" onclick="verPass(this,'pass')">Ver</button></div></div>
   <button class="btn" style="width:100%" onclick="entrar()">Entrar</button>
+  <div style="margin-top:12px;text-align:center">
+    <button class="enlace" onclick="recuperar()">¿Olvidaste tu contraseña?</button>
+  </div>
   <div class="err" id="errLogin"></div>
 </div>
 
@@ -216,6 +229,26 @@ async function init(){
   }catch(e){ $('errLogin').textContent='No se pudo conectar con el servidor.'; return; }
   const {data} = await SB.auth.getSession();
   if(data.session) await tras_entrar();
+}
+
+function verPass(btn, id){
+  const el = $(id), mostrar = el.type === 'password';
+  el.type = mostrar ? 'text' : 'password';
+  btn.textContent = mostrar ? 'Ocultar' : 'Ver';
+}
+
+/* El enlace de recuperación lleva a la app, que es donde se elige la
+   contraseña nueva. Después se vuelve aquí a entrar. */
+async function recuperar(){
+  const email = $('email').value.trim();
+  if(!email.includes('@')) return $('errLogin').textContent = 'Escribe tu correo arriba primero.';
+  if(!SB) return $('errLogin').textContent = 'Sin conexión con el servidor.';
+  const {error} = await SB.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname.replace(/panel\.html$/, 'index.html')
+  });
+  if(error) return $('errLogin').textContent = error.message;
+  $('errLogin').style.color = 'var(--acc)';
+  $('errLogin').textContent = 'Enlace enviado. Ábrelo, elige tu contraseña nueva y vuelve aquí.';
 }
 
 async function entrar(){
