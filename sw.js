@@ -1,6 +1,6 @@
 /* Service worker: cachea la app para que funcione sin internet. */
-const CACHE = 'diario-gym-v6';
-const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
+const CACHE = 'diario-gym-v7';
+const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './hero.jpg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -91,6 +91,34 @@ tr:last-child td{border-bottom:none}
 .setlbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;text-align:center}
 .setlbl span.rir{color:var(--acc)}
 
+/* --- Marca y borrador --- */
+.marca{display:flex;align-items:center;gap:11px}
+.marca img{width:42px;height:42px;border-radius:10px;flex:none;object-fit:cover}
+#obHero{width:100%;border-radius:12px;margin:0 0 20px;display:block}
+.borrador{background:rgba(232,163,61,.09);border:1px solid var(--warn);border-radius:10px;
+  padding:12px 14px;margin-bottom:14px;font-size:13.5px;line-height:1.6}
+.borrador b{color:var(--ink)}
+.borrador .acc{display:flex;gap:9px;margin-top:10px;flex-wrap:wrap}
+#bStatus{font-size:12px;color:var(--dim);margin-top:10px;min-height:16px}
+#bStatus.on{color:var(--acc)}
+
+/* --- Rutina propia --- */
+.rp{border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:9px;background:var(--card2)}
+.rp .top{display:grid;grid-template-columns:1fr 70px 90px 78px 34px;gap:8px;align-items:center}
+.rp select,.rp input{padding:9px 8px;font-size:14px}
+.rp button.x{background:none;border:none;color:var(--dim);cursor:pointer;font-size:17px;padding:0}
+.rplbl{display:grid;grid-template-columns:1fr 70px 90px 78px 34px;gap:8px;margin-bottom:5px}
+.rplbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+@media(max-width:640px){
+  .rp .top,.rplbl{grid-template-columns:1fr 56px 76px 64px 28px;gap:6px}
+}
+.diag{margin-top:6px}
+.diag .fila{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.diag .fila:last-child{border-bottom:none}
+.diag .fila span:first-child{color:var(--dim)}
+.barmini{height:6px;background:var(--card2);border-radius:99px;overflow:hidden;margin-top:5px;max-width:160px}
+.barmini i{display:block;height:100%;border-radius:99px}
+
 /* --- Alta de participante --- */
 #onboard{position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;display:none}
 #onboard.on{display:block}
@@ -170,6 +198,7 @@ button.btn.sm{min-height:34px}
 
   <!-- 0 · Bienvenida y cuenta -->
   <div class="obstep on" id="ob0">
+    <img id="obHero" src="hero.jpg" alt="" loading="eager">
     <div class="obnum">Paso 1 de 6</div>
     <h1>Diario de Entrenamiento</h1>
     <p class="lead">Registra tus series, tu esfuerzo y tu comida. La app aprende de tu historial y va ajustando las cargas contigo.<br><br>
@@ -277,8 +306,11 @@ button.btn.sm{min-height:34px}
 <div class="wrap">
 
 <header>
-  <h1>Diario de Entrenamiento</h1>
-  <div class="s"><span id="hdPlan">—</span></div>
+  <div class="marca">
+    <img src="icon-192.png" alt="">
+    <h1>Diario de Entrenamiento</h1>
+  </div>
+  <div class="s" style="margin-top:8px"><span id="hdPlan">—</span></div>
   <div class="s"><span id="hdWeek">—</span></div>
   <div class="s" style="margin-top:6px"><span class="sync off" id="syncBadge"><i></i><span id="syncTxt">Modo local</span></span></div>
 </header>
@@ -346,6 +378,7 @@ button.btn.sm{min-height:34px}
   <div class="card">
     <h2>Registrar sesión</h2>
     <p class="sub">Los pesos de la última vez aparecen arriba de cada ejercicio. Tu trabajo es igualarlos o superarlos.</p>
+    <div id="bAviso"></div>
     <div class="row r2">
       <div><label>Fecha</label><input type="date" id="wDate"></div>
       <div><label>Rutina</label><select id="wRoutine" onchange="renderExercises()"></select></div>
@@ -357,8 +390,38 @@ button.btn.sm{min-height:34px}
     </div>
     <div class="row"><div><label>Notas (energía, dolor, cómo se sintió)</label><textarea id="wNotes" placeholder="Buena energía, banca subió 2.5 kg..."></textarea></div></div>
     <button class="btn" onclick="saveWorkout()">Guardar sesión</button>
+    <div id="bStatus"></div>
     <div class="note"><b>RIR = repeticiones en reserva:</b> cuántas te quedaban antes de fallar. 0 es fallo total, 2 es "podía dos más".
     Es el campo más importante de la app — sin él no se puede saber si la carga fue la correcta, y no se puede reconstruir después de memoria.</div>
+  </div>
+
+  <div class="card" id="cardRP" style="display:none">
+    <h2>Mi rutina</h2>
+    <p class="sub">Con tu experiencia tiene más sentido que uses tu propia rutina que una plantilla. Arma la tuya y la app te dice qué tan equilibrada está frente al catálogo.</p>
+
+    <div class="row r2">
+      <div><label>Rutina</label><select id="rpSel" onchange="rpCambiar()"></select></div>
+      <div><label>Nombre</label><input type="text" id="rpNombre" placeholder="Torso pesado" oninput="rpTocar()"></div>
+    </div>
+
+    <div class="rplbl"><span>Ejercicio</span><span>Series</span><span>Reps</span><span>RIR</span><span></span></div>
+    <div id="rpFilas"></div>
+
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn gh sm" onclick="rpAgregar()">+ Ejercicio</button>
+      <button class="btn sm" onclick="rpGuardar()">Guardar rutina</button>
+      <button class="btn gh sm" onclick="rpNueva()">Nueva</button>
+      <button class="btn gh sm" style="border-color:var(--bad);color:var(--bad)" onclick="rpBorrar()">Borrar</button>
+    </div>
+
+    <h3 style="font-size:14px;color:var(--acc);margin:22px 0 4px">Diagnóstico</h3>
+    <div id="rpDiag"></div>
+
+    <div class="note">
+      El análisis usa reglas de prescripción de uso común, no el modelo predictivo — ese todavía no
+      opera en producción. Son referencias, no reglas absolutas: una rutina puede salirse de ellas y
+      estar bien si sabes por qué.
+    </div>
   </div>
 
   <div class="card">
@@ -623,44 +686,62 @@ const CALENDARIO = {
   4: ['Lunes','Martes','Jueves','Viernes'],
   5: ['Lunes','Martes','Miércoles','Jueves','Viernes']
 };
-const misRutinas = () => PROGRAMAS[D.cfg.dias] || PROGRAMAS[5];
+/* Las del programa que le tocó, más las que haya armado él mismo */
+const misRutinas = () => (PROGRAMAS[D.cfg.dias] || PROGRAMAS[5])
+  .concat(Object.keys(ROUTINES).filter(k=>k.startsWith('propia')));
+/* El historial puede referirse a una rutina propia que ya se borró */
+const nombreRutina = k => (ROUTINES[k] && ROUTINES[k].name) || 'Rutina eliminada';
+
 const GOAL_TXT = {fat_loss:'Pérdida de grasa', recomp:'Recomposición',
                   muscle_gain:'Ganancia muscular', maintenance:'Mantenimiento'};
-/* Puente entre los nombres de la app y el catálogo de la base (tabla exercises.slug).
-   Cada entrada: [slug, rirMin, rirMax]. Si cambias un nombre, actualiza aquí también. */
+/* Puente entre los nombres de la app y el catálogo de la base (tabla exercises).
+   [slug, rirMin, rirMax, grupo muscular, patrón de movimiento, ¿compuesto?] */
 const EX_MAP = {
-  "Press banca inclinado":["press-banca-inclinado",1,3],
-  "Press militar con barra":["press-militar-barra",1,3],
-  "Fondos en paralelas":["fondos-paralelas",1,3],
-  "Aperturas con mancuerna":["aperturas-mancuerna",1,2],
-  "Extensión de tríceps en polea":["extension-triceps-polea",1,2],
-  "Elevaciones laterales":["elevaciones-laterales",0,2],
-  "Sentadilla hack":["sentadilla-hack",1,3],
-  "Peso muerto":["peso-muerto",2,3],
-  "Prensa":["prensa",1,3],
-  "Curl femoral":["curl-femoral",1,2],
-  "Pantorrilla":["pantorrilla",0,2],
-  "Dominadas":["dominadas",0,1],
-  "Jalón al pecho":["jalon-al-pecho",1,2],
-  "Remo unilateral mancuerna":["remo-unilateral-mancuerna",1,3],
-  "Remo alto abierto":["remo-alto-abierto",1,2],
-  "Curl de bíceps con barra":["curl-biceps-barra",1,2],
-  "Antebrazo":["antebrazo",0,2],
-  "Sentadilla goblet":["sentadilla-goblet",1,3],
-  "Extensión de cuádriceps":["extension-cuadriceps",1,2],
-  "Desplantes":["desplantes",1,2],
-  "Búlgaras":["bulgaras",1,2],
-  "Hiperextensión baja":["hiperextension-baja",1,3],
-  "Abductor":["abductor",0,2],
-  "Press militar mancuernas":["press-militar-mancuernas",1,3],
-  "Elevaciones frontales":["elevaciones-frontales",1,2],
-  "Posterior (pájaros)":["posterior-pajaros",0,2],
-  "Curl spider":["curl-spider",1,2],
-  "Press francés":["press-frances",1,2],
-  "Trabajo de cuello":["trabajo-cuello",2,3]
+  "Press banca inclinado":["press-banca-inclinado",1,3,"pecho","empuje_horizontal",true],
+  "Press militar con barra":["press-militar-barra",1,3,"hombro","empuje_vertical",true],
+  "Fondos en paralelas":["fondos-paralelas",1,3,"pecho","empuje_vertical",true],
+  "Aperturas con mancuerna":["aperturas-mancuerna",1,2,"pecho","aislamiento",false],
+  "Extensión de tríceps en polea":["extension-triceps-polea",1,2,"triceps","aislamiento",false],
+  "Elevaciones laterales":["elevaciones-laterales",0,2,"hombro","aislamiento",false],
+  "Sentadilla hack":["sentadilla-hack",1,3,"cuadriceps","sentadilla",true],
+  "Peso muerto":["peso-muerto",2,3,"isquios","bisagra",true],
+  "Prensa":["prensa",1,3,"cuadriceps","sentadilla",true],
+  "Curl femoral":["curl-femoral",1,2,"isquios","aislamiento",false],
+  "Pantorrilla":["pantorrilla",0,2,"pantorrilla","aislamiento",false],
+  "Dominadas":["dominadas",0,1,"espalda","jale_vertical",true],
+  "Jalón al pecho":["jalon-al-pecho",1,2,"espalda","jale_vertical",true],
+  "Remo unilateral mancuerna":["remo-unilateral-mancuerna",1,3,"espalda","jale_horizontal",true],
+  "Remo alto abierto":["remo-alto-abierto",1,2,"hombro","jale_horizontal",true],
+  "Curl de bíceps con barra":["curl-biceps-barra",1,2,"biceps","aislamiento",false],
+  "Antebrazo":["antebrazo",0,2,"antebrazo","aislamiento",false],
+  "Sentadilla goblet":["sentadilla-goblet",1,3,"cuadriceps","sentadilla",true],
+  "Extensión de cuádriceps":["extension-cuadriceps",1,2,"cuadriceps","aislamiento",false],
+  "Desplantes":["desplantes",1,2,"cuadriceps","zancada",true],
+  "Búlgaras":["bulgaras",1,2,"gluteo","zancada",true],
+  "Hiperextensión baja":["hiperextension-baja",1,3,"gluteo","bisagra",true],
+  "Abductor":["abductor",0,2,"gluteo","aislamiento",false],
+  "Press militar mancuernas":["press-militar-mancuernas",1,3,"hombro","empuje_vertical",true],
+  "Elevaciones frontales":["elevaciones-frontales",1,2,"hombro","aislamiento",false],
+  "Posterior (pájaros)":["posterior-pajaros",0,2,"hombro","aislamiento",false],
+  "Curl spider":["curl-spider",1,2,"biceps","aislamiento",false],
+  "Press francés":["press-frances",1,2,"triceps","aislamiento",false],
+  "Trabajo de cuello":["trabajo-cuello",2,3,"cuello","aislamiento",false]
 };
 const slugOf   = n => (EX_MAP[n]||[null])[0];
 const rirTgtOf = n => { const e=EX_MAP[n]; return e? [e[1],e[2]] : [1,3]; };
+const grupoOf  = n => (EX_MAP[n]||[])[3] || 'otro';
+const patronOf = n => (EX_MAP[n]||[])[4] || 'otro';
+const esCompuesto = n => !!(EX_MAP[n]||[])[5];
+
+const GRUPO_TXT = {pecho:'Pecho', espalda:'Espalda', hombro:'Hombro', cuadriceps:'Cuádriceps',
+  isquios:'Isquiotibiales', gluteo:'Glúteo', pantorrilla:'Pantorrilla', biceps:'Bíceps',
+  triceps:'Tríceps', antebrazo:'Antebrazo', core:'Core', cuello:'Cuello'};
+const PATRON_TXT = {empuje_horizontal:'Empuje horizontal', empuje_vertical:'Empuje vertical',
+  jale_horizontal:'Jale horizontal', jale_vertical:'Jale vertical', sentadilla:'Sentadilla',
+  bisagra:'Bisagra de cadera', zancada:'Zancada', aislamiento:'Aislamiento', core:'Core'};
+/* Patrones que una rutina completa debería cubrir en la semana */
+const PATRONES_BASE = ['sentadilla','bisagra','empuje_horizontal','empuje_vertical',
+                       'jale_vertical','jale_horizontal'];
 
 /* Plan original del autor. Sirve de respaldo para su cuenta y para el
    modo sin cuenta; los participantes nuevos reciben el suyo. */
@@ -732,7 +813,7 @@ const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false}});
+       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[]}});
 
 let D = load();
 function load(){
@@ -836,6 +917,329 @@ function nut7(){
   return {days:n, kcal:s('kcal'), prot:s('prot'), target:s('target')};
 }
 
+/* ====================================================================
+   RUTINA PROPIA  ·  solo para quien lleva 3+ años entrenando
+   A un principiante conviene darle una plantilla; a alguien con años ya
+   tiene una rutina que le funciona, y obligarlo a otra es la vía rápida
+   a que abandone. El diagnóstico usa reglas de prescripción conocidas,
+   no el modelo: eso se dice tal cual en la interfaz.
+   ==================================================================== */
+const EXPERTO_MESES = 36;
+let rpIdx = 0;
+
+const rpLista  = () => (D.cfg.propias = D.cfg.propias || []);
+const rpActual = () => rpLista()[rpIdx];
+const rpSlug   = i => 'propia' + i;
+
+function rpInit(){
+  const card = document.getElementById('cardRP');
+  const puede = (+D.cfg.expMeses || 0) >= EXPERTO_MESES;
+  card.style.display = puede ? '' : 'none';
+  if(!puede) return;
+  if(!rpLista().length) rpLista().push({n:'Mi rutina A', f:[]});
+  if(rpIdx >= rpLista().length) rpIdx = 0;
+  rpPintarSelect(); rpRender();
+}
+
+function rpPintarSelect(){
+  const s = document.getElementById('rpSel');
+  s.innerHTML = rpLista().map((r,i)=>`<option value="${i}">${r.n||('Rutina '+(i+1))}</option>`).join('');
+  s.value = rpIdx;
+  document.getElementById('rpNombre').value = rpActual() ? rpActual().n : '';
+}
+
+function rpCambiar(){ rpIdx = +document.getElementById('rpSel').value; rpPintarSelect(); rpRender(); }
+function rpNueva(){
+  rpLista().push({n:'Mi rutina '+String.fromCharCode(65+rpLista().length), f:[]});
+  rpIdx = rpLista().length-1; rpPintarSelect(); rpRender();
+}
+function rpBorrar(){
+  if(!confirm('¿Borrar esta rutina? Las sesiones ya registradas con ella no se tocan.')) return;
+  rpLista().splice(rpIdx,1);
+  if(!rpLista().length) rpLista().push({n:'Mi rutina A', f:[]});
+  rpIdx = 0; rpSincronizar(); save(); rpPintarSelect(); rpRender(); init();
+  toast('Rutina borrada');
+}
+
+function rpRender(){
+  const r = rpActual(); if(!r) return;
+  const opciones = Object.keys(EX_MAP).sort()
+    .map(n=>`<option value="${n}">${n}</option>`).join('');
+  document.getElementById('rpFilas').innerHTML = r.f.length
+    ? r.f.map((fila,i)=>`
+      <div class="rp"><div class="top">
+        <select onchange="rpTocar()" data-i="${i}" data-k="ex">
+          <option value="">— elige —</option>${opciones}</select>
+        <input type="number" inputmode="numeric" min="1" max="10" value="${fila.s??3}"   oninput="rpTocar()" data-i="${i}" data-k="s">
+        <input type="text"   value="${fila.reps??'8-10'}" placeholder="8-10"              oninput="rpTocar()" data-i="${i}" data-k="reps">
+        <input type="number" inputmode="numeric" min="0" max="5" value="${fila.rir??2}"   oninput="rpTocar()" data-i="${i}" data-k="rir">
+        <button class="x" onclick="rpQuitar(${i})">×</button>
+      </div></div>`).join('')
+    : '<div class="empty" style="padding:18px">Agrega ejercicios para armar tu rutina.</div>';
+  r.f.forEach((fila,i)=>{
+    const sel = document.querySelector(`#rpFilas select[data-i="${i}"]`);
+    if(sel) sel.value = fila.ex || '';
+  });
+  rpAnalizar();
+}
+
+function rpAgregar(){ rpActual().f.push({ex:'', s:3, reps:'8-10', rir:2}); rpRender(); }
+function rpQuitar(i){ rpActual().f.splice(i,1); rpRender(); }
+
+function rpTocar(){
+  const r = rpActual(); if(!r) return;
+  r.n = document.getElementById('rpNombre').value || r.n;
+  document.querySelectorAll('#rpFilas [data-i]').forEach(el=>{
+    const i=+el.dataset.i, k=el.dataset.k;
+    if(!r.f[i]) return;
+    r.f[i][k] = (k==='s'||k==='rir') ? (el.value===''?null:+el.value) : el.value;
+  });
+  rpAnalizar();
+}
+
+/* Las rutinas propias se suman a las del programa para poder registrarlas */
+function rpSincronizar(){
+  Object.keys(ROUTINES).filter(k=>k.startsWith('propia')).forEach(k=>delete ROUTINES[k]);
+  rpLista().forEach((r,i)=>{
+    const ex = r.f.filter(f=>f.ex && EX_MAP[f.ex])
+                  .map(f=>[f.ex, `${f.s||3} × ${f.reps||'8-10'}`]);
+    if(ex.length) ROUTINES[rpSlug(i)] = {name: r.n || ('Mi rutina '+(i+1)), ex};
+  });
+}
+
+function rpGuardar(){
+  rpTocar();
+  const r = rpActual();
+  const validas = r.f.filter(f=>f.ex && EX_MAP[f.ex]);
+  if(!validas.length) return toast('Agrega al menos un ejercicio');
+  rpSincronizar(); save(); rpPintarSelect(); init();
+  toast('Rutina guardada · ya puedes registrarla arriba');
+}
+
+/* -------------------- Diagnóstico -------------------- */
+function rpAnalizar(){
+  const box = document.getElementById('rpDiag');
+  const todas = rpLista().map(r=>r.f.filter(f=>f.ex && EX_MAP[f.ex]));
+  const filas = todas[rpIdx] || [];
+  if(!filas.length){ box.innerHTML='<div class="note" style="margin:0">Sin ejercicios que analizar todavía.</div>'; return; }
+
+  const dias = +D.cfg.dias || 4;
+  const nRut = Math.max(1, todas.filter(f=>f.length).length);
+  const veces = dias / nRut;                     // veces por semana que toca esta rutina
+
+  const seriesSesion = filas.reduce((a,f)=>a+(+f.s||0),0);
+
+  // Series semanales por grupo, sumando TODAS sus rutinas
+  const porGrupo = {};
+  todas.forEach(f=>f.forEach(x=>{
+    const g = grupoOf(x.ex);
+    porGrupo[g] = (porGrupo[g]||0) + (+x.s||0) * (dias/nRut);
+  }));
+
+  // Patrones cubiertos en la semana
+  const patrones = new Set();
+  todas.forEach(f=>f.forEach(x=>patrones.add(patronOf(x.ex))));
+  const faltan = PATRONES_BASE.filter(p=>!patrones.has(p));
+
+  // Empuje contra jale
+  let emp=0, jal=0;
+  todas.forEach(f=>f.forEach(x=>{
+    const p = patronOf(x.ex), s = (+x.s||0);
+    if(p.startsWith('empuje')) emp+=s;
+    if(p.startsWith('jale'))   jal+=s;
+  }));
+
+  // Referencia del catálogo: series por sesión del programa que le tocaría
+  const refSlug = (PROGRAMAS[dias] || PROGRAMAS[5]);
+  const refSeries = Math.round(refSlug.reduce((a,k)=>
+    a + (ROUTINES[k] ? ROUTINES[k].ex.reduce((b,e)=>b + (parseInt(e[1])||3), 0) : 0), 0) / refSlug.length);
+
+  const chip = (t,c) => `<span class="chip ${c}">${t}</span>`;
+  const filasHTML = [];
+
+  // 1. Volumen de la sesión
+  filasHTML.push(['Series en esta sesión',
+    `${seriesSesion} ` + (seriesSesion>28 ? chip('larga','c-w') : seriesSesion<8 ? chip('corta','c-w') : chip('bien','c-ok')) +
+    `<div style="color:var(--dim);font-size:11.5px;margin-top:3px">El catálogo usa ~${refSeries} por sesión</div>`]);
+
+  // 2. Series semanales por grupo muscular
+  const orden = Object.entries(porGrupo).sort((a,b)=>b[1]-a[1]);
+  const detalle = orden.map(([g,s])=>{
+    const v = Math.round(s);
+    const est = v<6 ? ['muy bajo','c-b',v/20] : v<10 ? ['bajo','c-w',v/20]
+              : v<=20 ? ['adecuado','c-ok',v/20] : ['alto','c-w',1];
+    return `<div class="fila"><span>${GRUPO_TXT[g]||g}</span>
+      <span style="text-align:right">${v} series/sem ${chip(est[0],est[1])}
+      <div class="barmini" style="margin-left:auto"><i style="width:${Math.min(100,est[2]*100)}%;background:${est[1]==='c-ok'?'var(--acc)':est[1]==='c-w'?'var(--warn)':'var(--bad)'}"></i></div>
+      </span></div>`;
+  }).join('');
+
+  // 3. Equilibrio
+  const razon = jal>0 ? emp/jal : (emp>0?Infinity:0);
+  const eqTxt = !emp && !jal ? ['sin compuestos','c-n']
+    : razon===Infinity ? ['solo empuje','c-b']
+    : razon>1.4 ? ['sobra empuje','c-w']
+    : razon<0.7 ? ['sobra jale','c-w'] : ['equilibrado','c-ok'];
+
+  box.innerHTML = `
+    <div class="diag">
+      ${filasHTML.map(f=>`<div class="fila"><span>${f[0]}</span><span style="text-align:right">${f[1]}</span></div>`).join('')}
+      <div class="fila"><span>Empuje contra jale</span>
+        <span style="text-align:right">${emp} : ${jal} ${chip(eqTxt[0],eqTxt[1])}</span></div>
+      <div class="fila"><span>Patrones sin cubrir</span>
+        <span style="text-align:right">${faltan.length
+          ? faltan.map(p=>chip(PATRON_TXT[p],'c-w')).join(' ')
+          : chip('ninguno','c-ok')}</span></div>
+    </div>
+    <h3 style="font-size:13px;color:var(--dim);margin:18px 0 4px;text-transform:uppercase;letter-spacing:.6px">Volumen semanal por grupo</h3>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:8px;line-height:1.55">
+      Calculado suponiendo que repartes tus ${nRut} rutina${nRut>1?'s':''} propia${nRut>1?'s':''}
+      en los ${dias} días que declaraste, o sea ${veces%1?veces.toFixed(1):veces} vez${veces===1?'':'es'} por semana cada una.
+      ${nRut < dias ? '<b>Si además usas las rutinas del catálogo, tu volumen real es mayor que el de aquí abajo.</b>' : ''}
+    </div>
+    <div class="diag">${detalle}</div>
+    ${rpConsejos(seriesSesion, porGrupo, faltan, razon, filas)}`;
+}
+
+/* Observaciones concretas, sin adornos */
+function rpConsejos(seriesSesion, porGrupo, faltan, razon, filas){
+  const c = [];
+  if(faltan.length)
+    c.push(`Te faltan patrones básicos en la semana: <b>${faltan.map(p=>PATRON_TXT[p].toLowerCase()).join(', ')}</b>. No es obligatorio cubrirlos todos, pero si es un olvido conviene corregirlo.`);
+  const bajos = Object.entries(porGrupo).filter(([,s])=>s<6).map(([g])=>GRUPO_TXT[g]||g);
+  if(bajos.length) c.push(`Con menos de 6 series semanales, <b>${bajos.join(', ')}</b> difícilmente progresará.`);
+  const altos = Object.entries(porGrupo).filter(([,s])=>s>22).map(([g])=>GRUPO_TXT[g]||g);
+  if(altos.length) c.push(`Más de 22 series semanales en <b>${altos.join(', ')}</b> suele ser más de lo que se recupera.`);
+  if(razon > 1.4) c.push('Hay bastante más empuje que jale. A la larga se nota en la postura de hombro.');
+  if(razon < 0.7 && razon > 0) c.push('Hay más jale que empuje, que es el desequilibrio menos problemático de los dos.');
+  const primeros = filas.slice(0,2).map(f=>f.ex);
+  if(primeros.length===2 && !esCompuesto(primeros[0]) && !esCompuesto(primeros[1]))
+    c.push('Empiezas con dos ejercicios de aislamiento. Los compuestos rinden más cuando llegas fresco.');
+  const sinRir = filas.filter(f=>f.rir==null || f.rir==='' ).length;
+  if(sinRir) c.push(`${sinRir} ejercicio${sinRir>1?'s':''} sin RIR objetivo. Sin esa referencia no se puede saber si la carga fue la correcta.`);
+
+  c.push('<b>Progresión sugerida:</b> si terminas una serie con más RIR del objetivo, sube un incremento la próxima vez; si te quedas corto dos sesiones seguidas, baja uno. Es la misma regla que sirve de línea base para evaluar el modelo.');
+  return `<div class="note" style="margin-top:16px">${c.map(x=>'• '+x).join('<br><br>')}</div>`;
+}
+
+/* ====================================================================
+   BORRADOR DE SESIÓN
+   En el gimnasio se captura ejercicio por ejercicio y se guarda al final.
+   Si la pestaña se recarga, el celular se bloquea o el navegador descarta
+   la página por memoria, todo lo capturado se perdía. Ahora cada tecla se
+   guarda en el dispositivo y la sesión se restaura sola.
+   ==================================================================== */
+const BKEY = 'gymDiary_borrador_v1';
+let bTimer = null;
+
+function leerFormulario(){
+  const r = document.getElementById('wRoutine').value;
+  const ej = (ROUTINES[r] ? ROUTINES[r].ex : []).map((e,ei)=>
+    [...document.querySelectorAll('#sets-'+ei+' .set')].map(row=>[
+      row.querySelector('.sw').value,
+      row.querySelector('.sr').value,
+      row.querySelector('.rir').value
+    ]));
+  return {
+    fecha:  document.getElementById('wDate').value,
+    rutina: r, ejercicios: ej,
+    rpe:    document.getElementById('wRpe').value,
+    dur:    document.getElementById('wDur').value,
+    notas:  document.getElementById('wNotes').value,
+    ts:     Date.now()
+  };
+}
+
+const borradorVacio = b => !b || !b.ejercicios ||
+  !b.ejercicios.some(ej => ej.some(s => s[0] || s[1] || s[2])) &&
+  !b.rpe && !b.dur && !b.notas;
+
+function guardarBorrador(){
+  const b = leerFormulario();
+  try{
+    if(borradorVacio(b)) localStorage.removeItem(BKEY);
+    else {
+      localStorage.setItem(BKEY, JSON.stringify(b));
+      const s = document.getElementById('bStatus');
+      s.textContent = 'Borrador guardado · ' + new Date().toTimeString().slice(0,5);
+      s.className = 'on';
+      clearTimeout(bTimer);
+      bTimer = setTimeout(()=>{ s.className=''; }, 2500);
+    }
+  }catch(e){}
+}
+
+function limpiarBorrador(){
+  try{ localStorage.removeItem(BKEY); }catch(e){}
+  document.getElementById('bAviso').innerHTML = '';
+  document.getElementById('bStatus').textContent = '';
+}
+
+function leerBorrador(){
+  try{ const r=localStorage.getItem(BKEY); return r? JSON.parse(r):null; }catch(e){ return null; }
+}
+
+/* Al abrir la app, si quedó una sesión a medias se avisa antes de tocar nada */
+function revisarBorrador(){
+  const b = leerBorrador();
+  const box = document.getElementById('bAviso');
+  if(!b || borradorVacio(b) || !ROUTINES[b.rutina]){ box.innerHTML=''; return; }
+  const cuantas = b.ejercicios.reduce((a,ej)=>a+ej.filter(s=>s[0]&&s[1]).length,0);
+  const cuando = new Date(b.ts);
+  const hoy = cuando.toDateString() === new Date().toDateString();
+  box.innerHTML =
+    `<div class="borrador"><b>Tienes una sesión sin guardar.</b><br>
+      ${ROUTINES[b.rutina].name} · ${cuantas} serie${cuantas===1?'':'s'} capturada${cuantas===1?'':'s'} ·
+      ${hoy? 'hoy a las '+cuando.toTimeString().slice(0,5)
+           : cuando.toLocaleDateString('es-MX',{day:'2-digit',month:'long'})}
+      <div class="acc">
+        <button class="btn sm" onclick="retomarBorrador()">Continuar</button>
+        <button class="btn gh sm" onclick="descartarBorrador()">Descartar</button>
+      </div></div>`;
+}
+
+function retomarBorrador(){
+  const b = leerBorrador();
+  if(!b || !ROUTINES[b.rutina]) return;
+  document.getElementById('wDate').value = b.fecha || today();
+  document.getElementById('wRoutine').value = b.rutina;
+  renderExercises();                                  // reconstruye con el número de series por defecto
+  (b.ejercicios||[]).forEach((ej, ei)=>{
+    const cont = document.getElementById('sets-'+ei);
+    if(!cont) return;
+    let filas = cont.querySelectorAll('.set');
+    while(filas.length < ej.length){ addSet(ei); filas = cont.querySelectorAll('.set'); }
+    while(filas.length > ej.length){ filas[filas.length-1].remove(); filas = cont.querySelectorAll('.set'); }
+    ej.forEach((s,i)=>{
+      const row = filas[i]; if(!row) return;
+      row.querySelector('.sw').value  = s[0] ?? '';
+      row.querySelector('.sr').value  = s[1] ?? '';
+      row.querySelector('.rir').value = s[2] ?? '';
+    });
+  });
+  document.getElementById('wRpe').value   = b.rpe   || '';
+  document.getElementById('wDur').value   = b.dur   || '';
+  document.getElementById('wNotes').value = b.notas || '';
+  document.getElementById('bAviso').innerHTML = '';
+  toast('Sesión restaurada');
+}
+
+function descartarBorrador(){
+  if(!confirm('¿Descartar la sesión sin guardar? No se puede recuperar.')) return;
+  limpiarBorrador();
+  toast('Borrador descartado');
+}
+
+/* Un solo escucha para todo el formulario: sirve para las series que se
+   agregan después, sin tener que reconectar nada. */
+['exList','wDate','wRoutine','wRpe','wDur','wNotes'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el){ el.addEventListener('input', guardarBorrador); el.addEventListener('change', guardarBorrador); }
+});
+// Guardar también al salir o al mandar la app a segundo plano
+window.addEventListener('beforeunload', guardarBorrador);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) guardarBorrador(); });
+
 /* ============ PESAS ============ */
 function lastFor(exName){
   for(let i=D.workouts.length-1;i>=0;i--){
@@ -895,6 +1299,7 @@ function saveWorkout(){
     notes:document.getElementById('wNotes').value});
   D.workouts.sort((a,b)=>a.date<b.date?-1:1);
   save();
+  limpiarBorrador();          // la sesión ya está guardada: el borrador sobra
   ['wNotes','wRpe','wDur'].forEach(i=>document.getElementById(i).value='');
   renderExercises(); render();
   toast(sinRir ? `Guardada · ${sinRir} serie${sinRir>1?'s':''} sin RIR` : "Sesión guardada: "+sets.length+" series");
@@ -990,7 +1395,7 @@ function render(){
   document.getElementById('recent').innerHTML = rc.length
     ? '<div class="tw"><table><tr><th>Fecha</th><th>Rutina</th><th>Series</th><th>Volumen</th></tr>'+
       rc.map(x=>{const v=x.sets.reduce((s,y)=>s+y.w*y.r,0);
-      return `<tr><td>${fmt(x.date)}</td><td>${ROUTINES[x.routine].name}</td><td>${x.sets.length}</td><td>${(v/1000).toFixed(1)} t</td></tr>`}).join('')+'</table></div>'
+      return `<tr><td>${fmt(x.date)}</td><td>${nombreRutina(x.routine)}</td><td>${x.sets.length}</td><td>${(v/1000).toFixed(1)} t</td></tr>`}).join('')+'</table></div>'
     : '<div class="empty">Todavía no hay entrenamientos registrados.</div>';
 
   // PRs
@@ -1012,7 +1417,7 @@ function render(){
   document.getElementById('wHist').innerHTML = wh.length
     ? '<tr><th>Fecha</th><th>Sem</th><th>Rutina</th><th>Volumen</th><th>Notas</th><th></th></tr>'+
       wh.map((x,i)=>{const v=x.sets.reduce((s,y)=>s+y.w*y.r,0); const idx=D.workouts.length-1-i;
-      return `<tr><td>${fmt(x.date)}</td><td>${weekOf(x.date)}</td><td>${ROUTINES[x.routine].name}</td>
+      return `<tr><td>${fmt(x.date)}</td><td>${weekOf(x.date)}</td><td>${nombreRutina(x.routine)}</td>
       <td>${(v/1000).toFixed(2)} t</td><td style="color:var(--dim)">${x.notes||'—'}</td>
       <td><button class="btn gh sm" onclick="del('workouts',${idx})">borrar</button></td></tr>`}).join('')
     : '<tr><td class="empty">Sin sesiones.</td></tr>';
@@ -1678,10 +2083,13 @@ function init(){
   document.title = 'Diario de Entrenamiento' + (D.cfg.nombre ? ' · '+D.cfg.nombre : '');
   aplicarNado();
   renderExercises(); render(); drawCharts();
+  revisarBorrador();
+  rpInit();
 }
 
 obOpciones('obGoals');
 obOpciones('obDias');
+rpSincronizar();
 init();
 quizaAlta();
 initSupabase();
