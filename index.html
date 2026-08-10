@@ -1764,6 +1764,13 @@ async function loadProfile(){
   if(data.target_weight_kg)  D.cfg.wGoal  = +data.target_weight_kg;
   if(data.goal)              D.cfg.goal   = data.goal;
   if(data.training_days_per_week) D.cfg.dias = data.training_days_per_week;
+  // La experiencia se guarda como fecha de inicio; aquí se vuelve a meses.
+  // Sin esto, al entrar desde otro dispositivo la app creería que eres
+  // principiante y escondería la sección de rutina propia.
+  if(data.training_since){
+    const meses = Math.round((Date.now() - new Date(data.training_since+'T00:00:00')) / 2629800000);
+    if(isFinite(meses) && meses >= 0) D.cfg.expMeses = meses;
+  }
 
   // Ya se había dado de alta en otro dispositivo: no repetir el cuestionario
   if(data.onboarded_at){
