@@ -430,9 +430,10 @@ button.btn.sm{min-height:34px}
     Es el campo más importante de la app — sin él no se puede saber si la carga fue la correcta, y no se puede reconstruir después de memoria.</div>
   </div>
 
-  <div class="card" id="cardRP" style="display:none">
+  <div class="card" id="cardRP">
     <h2>Mi rutina</h2>
-    <p class="sub">Con tu experiencia tiene más sentido que uses tu propia rutina que una plantilla. Arma la tuya y la app te dice qué tan equilibrada está frente al catálogo.</p>
+    <p class="sub">Registra la rutina que ya sigues, venga de donde venga: tu entrenador, tu gimnasio o la tuya de siempre. La app la compara con las del catálogo y te dice qué tan equilibrada está.</p>
+    <div class="note" id="rpNota" style="margin:0 0 14px;display:none"></div>
 
     <div class="row r2">
       <div><label>Rutina</label><select id="rpSel" onchange="rpCambiar()"></select></div>
@@ -959,11 +960,13 @@ function nut7(){
 }
 
 /* ====================================================================
-   RUTINA PROPIA  ·  solo para quien lleva 3+ años entrenando
-   A un principiante conviene darle una plantilla; a alguien con años ya
-   tiene una rutina que le funciona, y obligarlo a otra es la vía rápida
-   a que abandone. El diagnóstico usa reglas de prescripción conocidas,
-   no el modelo: eso se dice tal cual en la interfaz.
+   RUTINA PROPIA  ·  abierta a todos
+   Obligar a alguien que ya tiene rutina a seguir una plantilla es la vía
+   rápida a que deje de registrar, y sin registro no hay datos. Así que
+   cualquiera puede meter la suya; al principiante se le sugiere empezar
+   por el catálogo, pero no se le impide.
+   El diagnóstico usa reglas de prescripción conocidas, no el modelo:
+   eso se dice tal cual en la interfaz.
    ==================================================================== */
 const EXPERTO_MESES = 36;
 let rpIdx = 0;
@@ -973,10 +976,16 @@ const rpActual = () => rpLista()[rpIdx];
 const rpSlug   = i => 'propia' + i;
 
 function rpInit(){
-  const card = document.getElementById('cardRP');
-  const puede = (+D.cfg.expMeses || 0) >= EXPERTO_MESES;
-  card.style.display = puede ? '' : 'none';
-  if(!puede) return;
+  document.getElementById('cardRP').style.display = '';
+  // A quien lleva poco tiempo se le avisa, no se le bloquea
+  const nota = document.getElementById('rpNota');
+  const novato = (+D.cfg.expMeses || 0) < EXPERTO_MESES;
+  nota.style.display = novato ? '' : 'none';
+  if(novato) nota.innerHTML =
+    'Si estás empezando, las rutinas del catálogo ya vienen armadas y equilibradas: ' +
+    'úsalas y ahórrate el trabajo. Esta sección es por si tu entrenador o tu gimnasio ' +
+    'te dio una rutina distinta y prefieres seguir esa — registrar lo que <b>de verdad</b> ' +
+    'haces vale más que registrar lo que deberías hacer.';
   if(!rpLista().length) rpLista().push({n:'Mi rutina A', f:[]});
   if(rpIdx >= rpLista().length) rpIdx = 0;
   rpPintarSelect(); rpRender();
@@ -1743,7 +1752,10 @@ async function doSignOut(){
 async function loadCatalog(){
   const [ex,rt] = await Promise.all([
     SB.from('exercises').select('id,slug').is('owner_id',null),
-    SB.from('routines').select('id,slug').is('owner_id',null)
+    // Sin filtro de dueño: RLS ya limita a las globales y a las propias.
+    // Hacen falta las dos para poder mapear de vuelta una sesión registrada
+    // con una rutina propia.
+    SB.from('routines').select('id,slug')
   ]);
   CATALOG={ex:{},rt:{},exById:{},rtById:{}};
   (ex.data||[]).forEach(x=>{CATALOG.ex[x.slug]=x.id; CATALOG.exById[x.id]=x.slug;});
@@ -1822,6 +1834,7 @@ async function pushLocalToCloud(){
   setSync('','Subiendo...');
   try{
     await guardarPerfil();
+    const propias = await subirRutinasPropias();   // slug → id en la base
 
     // Se filtran los registros incompletos: Postgres rechaza los NOT NULL vacíos
     const bwRows=D.weights.filter(x=>x.date&&x.kg!=null)
@@ -1856,7 +1869,7 @@ async function pushLocalToCloud(){
       if(!w.uid) w.uid=uid();
       const {data:wr,error:we} = await SB.from('workouts').upsert({
         user_id:u, client_uid:w.uid, performed_on:w.date,
-        routine_id:CATALOG.rt[w.routine]||null,
+        routine_id: CATALOG.rt[w.routine] || propias[w.routine] || null,
         session_rpe:w.rpe??null, duration_min:w.dur??null, notes:w.notes||null
       },{onConflict:'user_id,client_uid'}).select('id').single();
       if(we) throw we;
@@ -2154,6 +2167,51 @@ async function guardarPerfil(){
         milestone:p[4]||null})),
       {onConflict:'user_id,week'});
   }catch(e){ /* la sincronización lo reintenta */ }
+}
+
+/* Sube las rutinas propias a la base para que el investigador vea con qué
+   entrena cada quien, y para que no se pierdan al cambiar de dispositivo.
+   El índice único de routines es parcial, así que no se puede usar upsert:
+   hay que consultar y luego insertar o actualizar. */
+async function subirRutinasPropias(){
+  if(!SB || !SESSION) return {};
+  if(!CATALOG) await loadCatalog();
+  const u = SESSION.user.id, mapa = {};
+
+  for(let i = 0; i < rpLista().length; i++){
+    const r = rpLista()[i];
+    const filas = (r.f||[]).filter(f => f.ex && CATALOG.ex[slugOf(f.ex)]);
+    if(!filas.length) continue;
+    const slug = rpSlug(i);
+    try{
+      const {data: ya} = await SB.from('routines').select('id')
+        .eq('owner_id', u).eq('slug', slug).maybeSingle();
+      let id = ya && ya.id;
+      if(id){
+        await SB.from('routines').update({name: r.n || slug}).eq('id', id);
+      }else{
+        const {data: nuevo, error} = await SB.from('routines')
+          .insert({owner_id:u, slug, name: r.n || slug, focus:'propia', order_index: 100 + i})
+          .select('id').single();
+        if(error) continue;
+        id = nuevo.id;
+      }
+      await SB.from('routine_exercises').delete().eq('routine_id', id);
+      const filasBD = filas.map((f, j) => {
+        const nums = String(f.reps || '8-10').match(/\d+/g) || ['8','10'];
+        const rmin = Math.min(100, Math.max(1, +nums[0]));
+        const rmax = Math.min(100, Math.max(rmin, +(nums[1] || nums[0])));
+        const rir  = Math.min(10, Math.max(0, f.rir == null ? 2 : +f.rir));
+        return {routine_id:id, exercise_id: CATALOG.ex[slugOf(f.ex)], order_index: j + 1,
+                target_sets: Math.min(12, Math.max(1, +f.s || 3)),
+                target_reps_min: rmin, target_reps_max: rmax,
+                target_rir_min: Math.max(0, rir - 1), target_rir_max: Math.min(10, rir + 1)};
+      });
+      if(filasBD.length) await SB.from('routine_exercises').insert(filasBD);
+      mapa[slug] = id;
+    }catch(e){ /* se reintenta en la siguiente sincronización */ }
+  }
+  return mapa;
 }
 
 /* ¿Hay que mostrar el alta? Solo a quien no tiene nada todavía. */

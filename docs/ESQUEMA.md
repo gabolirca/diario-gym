@@ -219,7 +219,11 @@ Hecho:
    según los días que cada quien pueda entrenar.
 7. Borrador de sesión: lo capturado se guarda en el dispositivo mientras se entrena y se
    restaura si la app se cierra antes de guardar.
-8. Rutina propia con diagnóstico por reglas, para participantes con 3+ años de experiencia.
+8. Rutina propia con diagnóstico por reglas, **abierta a todos**. Se sincroniza a
+   `routines` / `routine_exercises` con `owner_id` del participante, y las sesiones
+   registradas con ella llevan su `routine_id`. A quien lleva menos de 3 años se le
+   sugiere empezar por el catálogo, pero no se le impide: registrar lo que de verdad
+   entrena vale más que registrar lo que debería.
 9. Panel del investigador (`panel.html`) con acceso de solo lectura, vía `profiles.is_admin`
    y la función `private.es_admin()`.
 
