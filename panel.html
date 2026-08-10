@@ -72,6 +72,10 @@ tr:last-child td{border-bottom:none}
 .alerta{background:rgba(232,163,61,.08);border:1px solid var(--warn);border-radius:10px;padding:13px 15px;margin-bottom:10px;font-size:13.5px}
 .alerta.grave{background:rgba(226,103,79,.08);border-color:var(--bad)}
 .alerta b{color:var(--ink)}
+.demo{background:rgba(232,163,61,.12);border:1px solid var(--warn);border-radius:10px;
+  padding:14px 16px;margin-bottom:18px;font-size:14px;line-height:1.6}
+.demo b{color:var(--warn);text-transform:uppercase;letter-spacing:.8px;font-size:12px;display:block;margin-bottom:4px}
+.c-demo{background:rgba(232,163,61,.2);color:var(--warn)}
 
 #login{max-width:400px;margin:12vh auto;padding:0 18px}
 .pw{position:relative}
@@ -122,6 +126,8 @@ tr:last-child td{border-bottom:none}
       <button class="btn gh sm" onclick="salir()">Salir</button>
     </div>
   </header>
+
+  <div id="avisoDemo"></div>
 
   <nav>
     <button class="on" data-t="seg">Seguimiento</button>
@@ -290,6 +296,19 @@ async function cargar(){
 /* ------------------------------------------------------------------ */
 function pintar(){
   const P = DATA.participantes;
+
+  // Aviso de datos inventados. La marca viene de la base (profiles.is_demo),
+  // no de una bandera del cliente: no se puede apagar desde aquí.
+  const demos = P.filter(p=>p.es_demo);
+  const reales = P.filter(p=>!p.es_demo);
+  $('avisoDemo').innerHTML = demos.length
+    ? `<div class="demo"><b>Modo demostración</b>
+        ${demos.length} de ${P.length} participantes son <b style="display:inline;text-transform:none;letter-spacing:0;font-size:14px">datos inventados</b>
+        para poder enseñar el panel. Aparecen con la etiqueta DEMO.
+        Participantes reales con registro: <b style="display:inline;text-transform:none;letter-spacing:0;font-size:14px">${reales.filter(p=>p.sesiones>0).length}</b>.
+        No deben usarse para ninguna conclusión del estudio.</div>`
+    : '';
+
   const conAlta   = P.filter(p=>p.dado_de_alta).length;
   const sesiones  = P.reduce((a,b)=>a+(b.sesiones||0),0);
   const series    = P.reduce((a,b)=>a+(b.series||0),0);
@@ -328,7 +347,7 @@ function pintar(){
           : `<span class="chip ${dias>=14?'c-b':dias>=7?'c-w':'c-ok'}">${dias} d</span>`;
         const chRir = p.pct_rir==null? '<span class="chip c-n">—</span>'
           : `<span class="chip ${p.pct_rir<20?'c-b':p.pct_rir<50?'c-w':'c-ok'}">${p.pct_rir} %</span>`;
-        return `<tr><td><b>${etiqueta(p)}</b>${p.dado_de_alta?'':' <span class="chip c-w">sin alta</span>'}</td>
+        return `<tr><td><b>${etiqueta(p)}</b>${p.es_demo?' <span class="chip c-demo">demo</span>':''}${p.dado_de_alta?'':' <span class="chip c-w">sin alta</span>'}</td>
           <td style="color:var(--dim)">${OBJ[p.goal]||'—'}</td>
           <td class="num">${p.dias_semana??'—'}</td>
           <td class="num">${p.sesiones}</td>
@@ -407,8 +426,8 @@ function graficas(){
     const filas=DATA.progreso.filter(x=>x.user_id===p.user_id).sort((a,b)=>a.semana-b.semana);
     if(!filas.length) return;
     const c=COLORES[i%COLORES.length], n=etiqueta(p);
-    ton.push({nombre:n, color:c, pts:filas.map(x=>[x.semana, +x.tonelaje_t])});
-    fue.push({nombre:n, color:c, pts:filas.map(x=>[x.semana, +x.e1rm_promedio])});
+    ton.push({nombre:n + (p.es_demo?' (demo)':''), color:c, pts:filas.map(x=>[x.semana, +x.tonelaje_t])});
+    fue.push({nombre:n + (p.es_demo?' (demo)':''), color:c, pts:filas.map(x=>[x.semana, +x.e1rm_promedio])});
   });
   line('chTon', ton, 'lgTon');
   line('chFuerza', fue, 'lgFuerza');
