@@ -855,8 +855,7 @@ const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[],
-       owner:null}});   // de qué cuenta son estos datos
+       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[]}});
 
 let D = load();
 function load(){
@@ -1674,26 +1673,6 @@ async function onSession(s){
   if(s){
     inn.style.display=''; out.style.display='none';
     document.getElementById('auWho').textContent = s.user.email;
-
-    // Este navegador ya tenía datos de OTRA cuenta. Sin esta comprobación,
-    // al cambiar de cuenta se suben los datos ajenos como propios: es
-    // exactamente así como se mezclaron dos cuentas.
-    if(D.cfg.owner && D.cfg.owner !== s.user.id){
-      const hayDatos = D.workouts.length || D.weights.length || D.nutrition.length;
-      if(hayDatos && !confirm(
-          'Este dispositivo tiene datos guardados de otra cuenta.\n\n' +
-          'Aceptar: se borran de este navegador y se cargan los de ' + s.user.email +
-          ' (lo borrado ya está en la nube de la otra cuenta).\n\n' +
-          'Cancelar: se cierra la sesión y no se toca nada.')){
-        await SB.auth.signOut();
-        return;
-      }
-      D = EMPTY();
-      limpiarBorrador();
-    }
-    D.cfg.owner = s.user.id;
-    save(true);
-
     setSync('','Conectando...');
     try{
       await loadCatalog();
@@ -1766,16 +1745,7 @@ async function doSignIn(){
 }
 async function doSignOut(){
   if(!SB) return;
-  const limpiar = confirm(
-    '¿Borrar también los datos de este navegador?\n\n' +
-    'Aceptar: se borran de aquí (siguen guardados en tu cuenta en la nube).\n' +
-    'Recomendado si otra persona va a usar este dispositivo.\n\n' +
-    'Cancelar: se quedan en este navegador.');
   await SB.auth.signOut();
-  if(limpiar){
-    try{ localStorage.removeItem(KEY); localStorage.removeItem(BKEY); }catch(e){}
-    location.reload(); return;
-  }
   toast('Sesión cerrada · los datos siguen en este dispositivo');
 }
 
@@ -1861,11 +1831,6 @@ async function pushLocalToCloud(){
   if(!SB||!SESSION) return toast('Inicia sesión primero');
   if(!CATALOG) await loadCatalog();
   const u=SESSION.user.id;
-  // Segunda línea de defensa: nunca subir datos que son de otra cuenta
-  if(D.cfg.owner && D.cfg.owner !== u){
-    setSync('err','Datos de otra cuenta · no se subió nada');
-    return false;
-  }
   setSync('','Subiendo...');
   try{
     await guardarPerfil();
@@ -1908,28 +1873,16 @@ async function pushLocalToCloud(){
         session_rpe:w.rpe??null, duration_min:w.dur??null, notes:w.notes||null
       },{onConflict:'user_id,client_uid'}).select('id').single();
       if(we) throw we;
-      // Se arman las filas ANTES de borrar nada. Si no hay nada que subir,
-      // no se toca el servidor: borrar y no poder reinsertar fue lo que
-      // destruyó sesiones ya guardadas.
-      const rows=[], seen={}, omitidos=[];
+      await SB.from('workout_sets').delete().eq('workout_id',wr.id);
+      const rows=[], seen={};
       for(const s of (w.sets||[])){
         const eid = CATALOG.ex[s.slug || slugOf(s.ex)];
-        if(!eid){ omitidos.push(s.ex); continue; }
+        if(!eid) continue;                       // ejercicio fuera del catálogo: se omite
         seen[eid]=(seen[eid]||0)+1;
         rows.push({workout_id:wr.id, exercise_id:eid, set_index:seen[eid],
                    weight_kg:s.w, reps:s.r, rir:(s.rir==null?null:s.rir)});
       }
-      if(omitidos.length) console.warn('Series omitidas, ejercicio desconocido:', omitidos);
-
-      if(rows.length){
-        await SB.from('workout_sets').delete().eq('workout_id',wr.id);
-        const {error:es} = await SB.from('workout_sets').insert(rows);
-        if(es) throw es;                         // que falle ruidosamente, no en silencio
-      } else if((w.sets||[]).length){
-        // Había series locales pero ninguna se pudo traducir: es un error,
-        // no un motivo para vaciar lo que ya estaba guardado.
-        throw new Error('No se pudo traducir ninguna serie de la sesión del '+w.date);
-      }
+      if(rows.length) await SB.from('workout_sets').insert(rows);
     }
 
     save(true);
@@ -1948,17 +1901,13 @@ async function pullFromCloud(){
   if(!CATALOG) await loadCatalog();
   const nameBySlug={}; Object.entries(EX_MAP).forEach(([n,v])=>nameBySlug[v[0]]=n);
 
-  // SIEMPRE filtrar por usuario. El investigador tiene permiso de lectura
-  // sobre todos los participantes: sin este filtro, su app se descargaba
-  // los datos de todo el mundo y luego los volvía a subir como propios.
-  const u = SESSION.user.id;
   const [bw,bm,sl,nu,sw,wo] = await Promise.all([
-    SB.from('body_weights').select('*').eq('user_id',u).order('measured_on'),
-    SB.from('body_measures').select('*').eq('user_id',u).order('measured_on'),
-    SB.from('sleep_logs').select('*').eq('user_id',u).order('logged_on'),
-    SB.from('nutrition_logs').select('*').eq('user_id',u).order('logged_on'),
-    SB.from('swims').select('*').eq('user_id',u).order('performed_on'),
-    SB.from('workouts').select('*,workout_sets(*)').eq('user_id',u).order('performed_on')
+    SB.from('body_weights').select('*').order('measured_on'),
+    SB.from('body_measures').select('*').order('measured_on'),
+    SB.from('sleep_logs').select('*').order('logged_on'),
+    SB.from('nutrition_logs').select('*').order('logged_on'),
+    SB.from('swims').select('*').order('performed_on'),
+    SB.from('workouts').select('*,workout_sets(*)').order('performed_on')
   ]);
   if(bw.error||wo.error) throw (bw.error||wo.error);
 
