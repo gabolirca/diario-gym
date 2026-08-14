@@ -131,3 +131,40 @@ select count(*) from exercises where owner_id is null;  -- 29
 select count(*) from routines  where owner_id is null;  -- 5
 select count(*) from v_ml_dataset;                      -- 0 hasta que haya sesiones
 ```
+
+## Escáner de comida (solo v2)
+
+`functions/analizar-comida/` recibe una foto en base64, se la manda a Gemini y
+devuelve la estimación de kcal y macros. **La imagen no se guarda en ningún
+momento**: no se escribe en Storage, ni en una columna, ni en el log. Lo único
+que persiste es la fila numérica en `food_scans`.
+
+La llave de Gemini es un secreto del proyecto, nunca sale al navegador.
+
+```bash
+# 1. Crear la llave en https://aistudio.google.com/apikey
+# 2. Guardarla como secreto (una sola vez)
+npx supabase secrets set GEMINI_API_KEY=xxxxxxxx
+
+# Opcionales, con estos valores por defecto:
+#   GEMINI_MODEL=gemini-3.6-flash
+#   LIMITE_FOTOS_DIA=25
+
+# 3. Publicar la función
+npx supabase functions deploy analizar-comida
+```
+
+Sin la llave la función responde 503 y la app enseña «El escáner no está
+configurado todavía»: no truena, solo no estima.
+
+### Por qué `photo_ai` va aparte
+
+Un valor estimado por una foto no es una medición. Entra a `nutrition_logs`
+con `source='photo_ai'` y las vistas del estudio siguen contando solo
+`source='manual'`. Mezclarlos inflaría los días de registro con datos
+adivinados y la hipótesis H2 dejaría de ser verificable.
+
+```sql
+select * from v_error_estimador;   -- MAE del estimador contra lo que la persona guardó
+select count(*) from food_scans;   -- una fila por foto, sin imágenes
+```

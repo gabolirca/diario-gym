@@ -191,6 +191,26 @@ tr:last-child td{border-bottom:none}
 .c-w{background:rgba(232,163,61,.15);color:var(--warn)}
 .c-b{background:rgba(226,103,79,.15);color:var(--bad)}
 
+/* --- Estimación de comida por foto --- */
+.fotorow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.fotoprev{width:104px;height:104px;object-fit:cover;border-radius:12px;border:1px solid var(--line);
+  display:none;flex:0 0 auto}
+.fotoprev.on{display:block}
+.scanres{display:none;margin-top:14px;background:var(--card2);border-radius:12px;padding:13px 15px}
+.scanres.on{display:block}
+.scanres table{width:100%;border-collapse:collapse;font-size:13px}
+.scanres td{padding:5px 0;border-bottom:1px solid var(--line);color:var(--ink)}
+.scanres td.p{color:var(--dim);font-size:12px}
+.scanres td.k{text-align:right;white-space:nowrap;color:var(--dim)}
+.scanres tr:last-child td{border-bottom:none}
+.scantot{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 4px;font-size:13px}
+.scantot b{color:var(--acc);font-size:17px;display:block}
+.scantot span{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+.scanacc{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--acc2);border-top-color:var(--acc);
+  border-radius:50%;animation:gira .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes gira{to{transform:rotate(360deg)}}
+
 .empty{color:var(--dim);text-align:center;padding:32px 16px;font-size:14px}
 .chart{width:100%;height:230px}
 .lg{display:flex;gap:16px;font-size:12px;color:var(--dim);margin-top:8px;flex-wrap:wrap}
@@ -546,6 +566,31 @@ button.btn.sm{min-height:34px}
     <div class="kpi"><div class="l">Balance vs. objetivo</div><div class="v" id="nBal">—</div><div class="d">Promedio 7 días</div></div>
     <div class="kpi"><div class="l">Proteína por kg</div><div class="v" id="nProt">—</div><div class="d" id="nProtD">Mínimo: 1.8 g/kg</div></div>
     <div class="kpi"><div class="l">Días registrados</div><div class="v" id="nDays">—</div><div class="d">De los últimos 7</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Estimar desde una foto</h2>
+    <p class="sub">Toma la foto de tu plato y el modelo estima las calorías y los macros.
+      Rellena el formulario de abajo para que tú lo revises y lo corrijas antes de guardar.</p>
+    <div class="fotorow">
+      <img class="fotoprev" id="fotoPrev" alt="">
+      <div style="flex:1;min-width:200px">
+        <input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none"
+               onchange="analizarFoto(this.files[0]); this.value=''">
+        <button class="btn" id="fotoBtn" onclick="document.getElementById('fotoIn').click()">Tomar foto</button>
+        <div class="note" style="margin-top:9px" id="fotoEstado">
+          <b>La foto no se guarda.</b> Se manda al modelo, se usa para calcular y se descarta:
+          no queda copia en el servidor, en la base ni en el historial. Lo único que se registra
+          son los números y qué tanto los corregiste.
+        </div>
+      </div>
+    </div>
+
+    <div class="scanres" id="scanRes"></div>
+
+    <div class="note">Una estimación por foto se equivoca fácil, sobre todo con guisos, salsas y
+      aceite. Úsala como punto de partida, no como medición: para el estudio solo cuentan los días
+      que capturas tú.</div>
   </div>
 
   <div class="card">
@@ -977,6 +1022,147 @@ function saveSwim(){
   ['sM','sMin','sPace','sNotes'].forEach(i=>document.getElementById(i).value='');
 }
 
+/* ====================================================================
+   ESTIMAR COMIDA DESDE UNA FOTO
+
+   La imagen se reduce aquí, en el teléfono, antes de salir: menos datos
+   móviles, menos tokens y menos tiempo de espera. Se manda a una función
+   del servidor porque la llave del modelo no puede vivir en este archivo
+   —cualquiera puede leerlo— y porque el límite de uso diario tiene que
+   contarse en un sitio donde recargar la página no lo reinicie.
+
+   La foto no se guarda en ningún lado. La vista previa de abajo vive
+   solo en la memoria de este navegador y se borra al descartarla.
+   ==================================================================== */
+let SCAN = null;        // última estimación mostrada, mientras no se decida qué hacer con ella
+
+/* El nombre del alimento lo escribe el modelo, no la app: nunca se inserta
+   como HTML sin limpiarlo. */
+function textoSeguro(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* 1024 px de lado mayor es suficiente para que el modelo distinga la comida
+   y baja una foto de 4 MB a unos 150 KB. */
+function reducirImagen(file, lado){
+  lado = lado || 1024;
+  return new Promise((ok, mal)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const esc = Math.min(1, lado / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width  = Math.max(1, Math.round(img.width  * esc));
+      c.height = Math.max(1, Math.round(img.height * esc));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/jpeg', 0.82);
+      URL.revokeObjectURL(url);
+      ok({ b64: dataUrl.split(',')[1], dataUrl, bytes: Math.floor(dataUrl.length * 3 / 4) });
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); mal(new Error('No se pudo leer la imagen')); };
+    img.src = url;
+  });
+}
+
+function fotoOcupado(si, texto){
+  const b = document.getElementById('fotoBtn');
+  b.disabled = si;
+  b.innerHTML = si ? '<span class="spin"></span>' + (texto || 'Analizando…') : 'Tomar foto';
+}
+
+async function analizarFoto(file){
+  if(!file) return;
+  if(!SB || !SESSION) return toast('Necesitas iniciar sesión para usar el escáner');
+
+  let img;
+  try { img = await reducirImagen(file); }
+  catch(e){ return toast('No se pudo leer esa imagen'); }
+
+  const prev = document.getElementById('fotoPrev');
+  prev.src = img.dataUrl; prev.classList.add('on');
+  document.getElementById('scanRes').classList.remove('on');
+  fotoOcupado(true);
+
+  try{
+    const { data, error } = await SB.functions.invoke('analizar-comida',
+      { body: { imagen: img.b64, mime: 'image/jpeg' } });
+
+    // Cuando la función responde con un código de error, supabase-js lo marca
+    // en `error` pero el mensaje útil viene en el cuerpo. Hay que leer los dos.
+    let cuerpo = data;
+    if(error && error.context && typeof error.context.json === 'function'){
+      try { cuerpo = await error.context.json(); } catch(e){}
+    }
+    if(cuerpo && cuerpo.error){ borrarFoto(); return toast(cuerpo.error); }
+    if(error || !cuerpo){ borrarFoto(); return toast('No se pudo analizar la foto'); }
+
+    SCAN = cuerpo;
+    pintarEstimacion(cuerpo);
+  }catch(e){
+    borrarFoto(); toast('No se pudo analizar la foto');
+  }finally{
+    fotoOcupado(false);
+  }
+}
+
+const CONF_TXT = { alta:['c-ok','confianza alta'], media:['c-w','confianza media'], baja:['c-b','confianza baja'] };
+
+function pintarEstimacion(r){
+  const caja = document.getElementById('scanRes');
+  const [cls, txt] = CONF_TXT[r.confianza] || CONF_TXT.baja;
+  const filas = (r.alimentos||[]).map(a=>
+    `<tr><td>${textoSeguro(a.nombre)}<div class="p">${textoSeguro(a.porcion)}</div></td>
+         <td class="k">${+a.kcal||0} kcal</td></tr>`).join('');
+
+  caja.innerHTML =
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px">
+       <b style="font-size:13px">Lo que reconocí</b><span class="chip ${cls}">${txt}</span></div>
+     ${filas ? '<table>'+filas+'</table>' : '<div class="p" style="color:var(--dim);font-size:13px">Un solo platillo</div>'}
+     <div class="scantot">
+       <div><span>Kcal</span><b>${r.total.kcal}</b></div>
+       <div><span>Proteína</span><b>${r.total.proteina_g} g</b></div>
+       <div><span>Carbos</span><b>${r.total.carbos_g} g</b></div>
+       <div><span>Grasa</span><b>${r.total.grasa_g} g</b></div>
+     </div>
+     ${r.nota ? `<div class="note" style="margin-top:2px">${textoSeguro(r.nota)}</div>` : ''}
+     <div class="scanacc">
+       <button class="btn sm" onclick="usarEstimacion()">Usar estos valores</button>
+       <button class="btn gh sm" onclick="descartarEstimacion()">Descartar</button>
+     </div>
+     <div class="note">Te quedan ${+r.restantes||0} fotos hoy · ${textoSeguro(r.modelo)}</div>`;
+  caja.classList.add('on');
+}
+
+function borrarFoto(){
+  const p = document.getElementById('fotoPrev');
+  p.src = ''; p.classList.remove('on');
+  document.getElementById('scanRes').classList.remove('on');
+  SCAN = null;
+}
+
+function usarEstimacion(){
+  if(!SCAN) return;
+  SCAN.usada = true;
+  const v = (id, x)=>{ document.getElementById(id).value = x; };
+  v('nKcal', SCAN.total.kcal);
+  v('nProtG', SCAN.total.proteina_g);
+  v('nCarb', SCAN.total.carbos_g);
+  v('nFat', SCAN.total.grasa_g);
+  document.getElementById('scanRes').classList.remove('on');
+  document.getElementById('fotoPrev').classList.remove('on');
+  toast('Revisa los números antes de guardar');
+  const campo = document.getElementById('nKcal');
+  if(campo.scrollIntoView) campo.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function descartarEstimacion(){
+  const id = SCAN && SCAN.id;
+  borrarFoto();
+  if(id && SB) { try{ await SB.from('food_scans').update({accepted:false}).eq('id',id); }catch(e){} }
+  toast('Estimación descartada');
+}
+
 function saveNutrition(){
   const g=id=>{const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v;};
   const d=document.getElementById('nDate').value;
@@ -984,10 +1170,26 @@ function saveNutrition(){
   const kcal=g('nKcal');
   if(kcal===null) return toast("Captura al menos las kcal");
   const tg=g('nTarget');
+  // Si los números salieron de una foto, el registro no puede pasar por
+  // capturado a mano: la vista del estudio filtra por eso. Cuenta como
+  // estimación aunque la persona haya corregido las cifras, porque el
+  // punto de partida sigue siendo lo que dijo el modelo.
+  const deFoto = !!(SCAN && SCAN.usada);
   upsert(D.nutrition,{date:d,kcal:Math.round(kcal),prot:g('nProtG'),carb:g('nCarb'),fat:g('nFat'),
-    target:tg==null?null:Math.round(tg),notes:document.getElementById('nNotes').value,src:'manual'});
-  save(); render(); toast("Comida guardada");
+    target:tg==null?null:Math.round(tg),notes:document.getElementById('nNotes').value,
+    src: deFoto ? 'foto' : 'manual'});
+  save(); render(); toast(deFoto ? "Guardado como estimación" : "Comida guardada");
   ['nKcal','nProtG','nCarb','nFat','nNotes'].forEach(i=>document.getElementById(i).value='');
+  cerrarCicloScan(Math.round(kcal), deFoto);
+}
+
+/* Guardar qué terminó capturando la persona es lo que permite medir
+   después el error del estimador, en vez de solo afirmar que funciona. */
+async function cerrarCicloScan(kcalFinal, aceptada){
+  if(!SCAN || !SCAN.id || !SB) { SCAN = null; return; }
+  const id = SCAN.id; SCAN = null;
+  borrarFoto();
+  try{ await SB.from('food_scans').update({accepted:aceptada, final_kcal:kcalFinal}).eq('id',id); }catch(e){}
 }
 
 /* Promedios de los últimos 7 días con registro, base de las variables del modelo */
@@ -2168,7 +2370,10 @@ async function pushLocalToCloud(){
 
     const nuRows=D.nutrition.filter(x=>x.date).map(x=>({user_id:u,logged_on:x.date,
       kcal:x.kcal==null?null:Math.round(x.kcal), protein_g:x.prot, carbs_g:x.carb, fat_g:x.fat,
-      kcal_target:x.target==null?null:Math.round(x.target), notes:x.notes||null, source:'manual'}));
+      kcal_target:x.target==null?null:Math.round(x.target), notes:x.notes||null,
+      // Lo estimado por foto sube marcado como tal. Mezclarlo con lo capturado
+      // a mano inflaría los días de registro del estudio con datos adivinados.
+      source: x.src==='foto' ? 'photo_ai' : 'manual'}));
     if(nuRows.length) await SB.from('nutrition_logs').upsert(nuRows,{onConflict:'user_id,logged_on'});
 
     for(const s of D.swims){
@@ -2248,7 +2453,8 @@ async function pullFromCloud(){
                  pec:num(x.chest_cm),bra:num(x.arm_cm),mus:num(x.thigh_cm),cad:num(x.hip_cm)}));
   D.sleep    = (sl.data||[]).map(x=>({date:x.logged_on,h:num(x.hours)}));
   D.nutrition= (nu.data||[]).map(x=>({date:x.logged_on,kcal:x.kcal,prot:num(x.protein_g),
-                 carb:num(x.carbs_g),fat:num(x.fat_g),target:x.kcal_target,notes:x.notes||'',src:x.source}));
+                 carb:num(x.carbs_g),fat:num(x.fat_g),target:x.kcal_target,notes:x.notes||'',
+                 src: x.source==='photo_ai' ? 'foto' : x.source}));
   D.swims    = (sw.data||[]).map(x=>({uid:x.client_uid,date:x.performed_on,
                  type:SWIM_FROM_DB[x.kind]||'cont', m:x.meters||0, min:num(x.minutes)||0,
                  pace:secToPace(x.pace_sec_100m), notes:x.notes||''}));
@@ -2589,9 +2795,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.0.5 · mapa muscular';
+const APP_VER = 'v2.0.6 · escáner de comida';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '005';
+const SW_CACHE_LOCAL = '006';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
