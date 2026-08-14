@@ -84,17 +84,39 @@ const ESQUEMA = {
   required: ['es_comida', 'alimentos', 'total', 'confianza', 'nota'],
 };
 
-/* La forma exacta de la respuesta ha cambiado entre versiones de la API.
-   En vez de apostar por una sola, se buscan las conocidas en orden. */
-function textoDeLaRespuesta(j: any): string | null {
-  if (typeof j?.output_text === 'string' && j.output_text.trim()) return j.output_text;
-  const deSalida = j?.output?.flatMap?.((o: any) =>
-    Array.isArray(o?.content) ? o.content.map((c: any) => c?.text) : [o?.text]);
-  const t1 = deSalida?.find?.((t: any) => typeof t === 'string' && t.trim());
-  if (t1) return t1;
-  const t2 = j?.candidates?.[0]?.content?.parts
-    ?.map((p: any) => p?.text).find((t: any) => typeof t === 'string' && t.trim());
-  return t2 ?? null;
+/* La respuesta no es un objeto plano: es una secuencia de pasos de ejecución
+   —pensamientos del modelo, llamadas a herramientas, salida final— y su forma
+   ha cambiado entre versiones de la API. Adivinar la ruta exacta ya falló una
+   vez. En lugar de eso se recorre el árbol completo buscando el primer objeto
+   que tenga la forma que pedimos, venga donde venga. Así un cambio de
+   envoltorio no vuelve a romper esto. */
+function pareceEstimacion(o: any): boolean {
+  return !!o && typeof o === 'object' && !Array.isArray(o) &&
+         !!o.total && typeof o.total === 'object' && 'kcal' in o.total;
+}
+
+function estimacionDeLaRespuesta(j: any): any | null {
+  const vistos = new Set<any>();
+  const pila: any[] = [j];
+  const textos: string[] = [];
+
+  while (pila.length) {
+    const n = pila.pop();
+    if (n == null) continue;
+    if (typeof n === 'string') { if (n.length < 20000) textos.push(n); continue; }
+    if (typeof n !== 'object' || vistos.has(n)) continue;
+    vistos.add(n);
+    if (pareceEstimacion(n)) return n;              // ya viene deserializado
+    for (const v of Object.values(n)) pila.push(v);
+  }
+
+  // Si no, vendrá como texto: a veces envuelto en ```json
+  for (const t of textos) {
+    const limpio = t.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    if (!limpio.startsWith('{')) continue;
+    try { const o = JSON.parse(limpio); if (pareceEstimacion(o)) return o; } catch { /* sigue */ }
+  }
+  return null;
 }
 
 const num = (v: unknown, max: number) => {
@@ -159,6 +181,13 @@ Deno.serve(async (req) => {
           { type: 'image', data: b64, mime_type: mime },
         ],
         response_format: { type: 'text', mime_type: 'application/json', schema: ESQUEMA },
+        // Sin esto, Google conserva la interacción —foto incluida— en sus
+        // registros. La app promete que la foto no se guarda: esa promesa no
+        // se sostiene si se guarda del otro lado.
+        store: false,
+        // Un plato no necesita razonamiento largo, y bajar de 10 s a unos
+        // pocos hace la diferencia entre usable e incómodo.
+        generation_config: { thinking_level: 'minimal' },
       }),
       signal: AbortSignal.timeout(45_000),
     });
@@ -180,11 +209,15 @@ Deno.serve(async (req) => {
     return responder({ error: mensaje }, 502);
   }
 
-  const crudo = textoDeLaRespuesta(await r.json());
-  let est: any;
-  try { est = JSON.parse(crudo ?? ''); } catch {
+  const bruto = await r.json();
+  const est = estimacionDeLaRespuesta(bruto);
+  if (!est) {
+    // Se guarda de qué forma vino la respuesta. Sin esto, «no se entendió» no
+    // dice nada y hay que adivinar otra vez.
+    const pista = `ilegible · claves: ${Object.keys(bruto ?? {}).join(',')} · ` +
+                  JSON.stringify(bruto).slice(0, 500);
     await admin.from('food_scans').insert({ user_id: user.id, model: MODELO, image_bytes: bytes,
-      ms, error: 'respuesta ilegible' });
+      ms, error: pista });
     return responder({ error: 'La respuesta del modelo no se entendió.' }, 502);
   }
 
