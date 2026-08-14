@@ -1145,7 +1145,7 @@ function rpAnalizar(){
     <h3 style="font-size:13px;color:var(--dim);margin:18px 0 4px;text-transform:uppercase;letter-spacing:.6px">Volumen semanal por grupo</h3>
     <div style="font-size:12px;color:var(--dim);margin-bottom:8px;line-height:1.55">
       Calculado suponiendo que repartes tus ${nRut} rutina${nRut>1?'s':''} propia${nRut>1?'s':''}
-      en los ${dias} días que declaraste, o sea ${veces%1?veces.toFixed(1):veces} vez${veces===1?'':'es'} por semana cada una.
+      en los ${dias} días que declaraste, o sea ${veces%1?veces.toFixed(1):veces} ${veces===1?'vez':'veces'} por semana cada una.
       ${nRut < dias ? '<b>Si además usas las rutinas del catálogo, tu volumen real es mayor que el de aquí abajo.</b>' : ''}
     </div>
     <div class="diag">${detalle}</div>
