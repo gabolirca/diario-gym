@@ -1802,6 +1802,18 @@ async function onSession(s){
     inn.style.display=''; out.style.display='none';
     document.getElementById('auWho').textContent = s.user.email;
 
+    // Datos guardados ANTES de que existiera la marca de dueño. No se
+    // pueden adoptar en silencio: un dispositivo ya contaminado le
+    // regalaría los datos ajenos a quien inicie sesión primero.
+    if(!D.cfg.owner && (D.workouts.length || D.weights.length)){
+      const mios = confirm(
+        'Este navegador tiene ' + D.workouts.length + ' sesiones guardadas sin dueño.\n\n' +
+        'Aceptar: son de ' + s.user.email + ' y se suben a su cuenta.\n' +
+        'Cancelar: se borran de aquí y se descarga lo que haya en la nube.\n\n' +
+        'Si no estás seguro, cancela: nada se pierde, lo de la nube está a salvo.');
+      if(!mios){ D = EMPTY(); limpiarBorrador(); }
+    }
+
     // Este navegador ya tenía datos de OTRA cuenta. Sin esta comprobación,
     // al cambiar de cuenta se suben los datos ajenos como propios: es
     // exactamente así como se mezclaron dos cuentas.
