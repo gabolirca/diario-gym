@@ -91,6 +91,22 @@ tr:last-child td{border-bottom:none}
 .setlbl span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;text-align:center}
 .setlbl span.rir{color:var(--acc)}
 
+/* --- Diagramas de ejercicio --- */
+.verdiag{background:none;border:1px solid var(--line);color:var(--dim);font-family:inherit;
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:99px;
+  cursor:pointer;margin-left:7px}
+.verdiag:hover,.verdiag.on{border-color:var(--acc);color:var(--acc)}
+.diagbox{display:none;padding:10px 13px 4px;border-bottom:1px solid var(--line)}
+.diagbox.on{display:block}
+.diagwrap{display:flex;gap:14px;align-items:flex-start}
+.diagwrap svg{flex:0 0 130px;background:var(--card2);border-radius:10px;padding:6px}
+.diaginfo{flex:1;min-width:0}
+.diaginfo h4{margin:0 0 5px;font-size:12px;color:var(--acc);text-transform:uppercase;letter-spacing:.6px}
+.diaginfo ul{margin:0 0 10px;padding-left:16px;font-size:12.5px;color:var(--dim);line-height:1.55}
+.diagleyenda{font-size:11px;color:var(--dim);margin-top:6px}
+.diagleyenda i{display:inline-block;width:12px;height:2px;vertical-align:middle;margin:0 4px 0 10px}
+@media(max-width:640px){ .diagwrap{flex-direction:column} .diagwrap svg{flex:none;width:100%;max-width:190px;margin:0 auto} }
+
 /* --- Contraseña visible --- */
 .pw{position:relative}
 .pw input{padding-right:74px}
@@ -975,6 +991,121 @@ function nut7(){
 }
 
 /* ====================================================================
+   MAPA MUSCULAR
+   Una silueta con el grupo trabajado resaltado. No es una imagen
+   generada: son formas con coordenadas fijas, así que no puede salir
+   con tres brazos ni con la espalda en una posición imposible.
+   El primer intento fueron diagramas de movimiento con figuras de
+   palitos; a tamaño de teléfono no se entendía ninguno y se
+   descartaron. Esto responde la pregunta que la gente sí se hace:
+   qué músculo trabaja este ejercicio.
+   Lienzo 100 x 132.
+   ==================================================================== */
+const MM_DIM = '#3c574f', MM_ACC = '#4ecfa8';
+
+/* Devuelve las dos mitades de una forma simétrica */
+const espejo = f => [f(1), f(-1)];
+
+function siluetaFormas(vista){
+  const p = [];
+  p.push('<circle cx="50" cy="13" r="8.5"/>');                      // 0 cabeza
+  p.push('<rect x="45" y="21" width="10" height="6" rx="2"/>');     // 1 cuello
+  if(vista === 'frente'){
+    p.push('<path d="M38 29 Q50 26 62 29 L62 45 Q50 48 38 45 Z"/>');   // 2 pecho
+    p.push('<rect x="41" y="46" width="18" height="20" rx="4"/>');     // 3 abdomen
+  }else{
+    p.push('<path d="M37 29 Q50 26 63 29 L61 58 Q50 62 39 58 Z"/>');   // 2 espalda
+    p.push('<rect x="41" y="62" width="18" height="12" rx="5"/>');     // 3 glúteo
+  }
+  p.push(...espejo(x => `<ellipse cx="${50+x*16}" cy="31" rx="8" ry="6.5"/>`));    // 4,5 hombro
+  p.push(...espejo(x => `<ellipse cx="${50+x*21}" cy="45" rx="5.5" ry="10"/>`));   // 6,7 brazo
+  p.push(...espejo(x => `<ellipse cx="${50+x*24}" cy="63" rx="4.8" ry="10"/>`));   // 8,9 antebrazo
+  p.push(...espejo(x => `<ellipse cx="${50+x*8}" cy="${vista==='frente'?84:86}" rx="7.5" ry="16"/>`)); // 10,11 muslo
+  p.push(...espejo(x => `<ellipse cx="${50+x*8}" cy="112" rx="5.5" ry="12"/>`));   // 12,13 pantorrilla
+  return p;
+}
+
+/* Qué formas se resaltan por grupo, y desde qué vista se ve mejor */
+const MM_INDICE = {
+  frente:  {cuello:[1], pecho:[2], core:[3], hombro:[4,5], biceps:[6,7],
+            antebrazo:[8,9], cuadriceps:[10,11], pantorrilla:[12,13]},
+  espalda: {cuello:[1], espalda:[2], gluteo:[3], hombro:[4,5], triceps:[6,7],
+            antebrazo:[8,9], isquios:[10,11], pantorrilla:[12,13]},
+};
+const MM_VISTA = {pecho:'frente', core:'frente', hombro:'frente', biceps:'frente',
+  antebrazo:'frente', cuadriceps:'frente', cuello:'frente', espalda:'espalda',
+  gluteo:'espalda', triceps:'espalda', isquios:'espalda', pantorrilla:'espalda'};
+
+/* SVG del mapa muscular de un ejercicio, o null si no se conoce el grupo */
+function mapaMuscularSVG(slug, alto){
+  const nombre = Object.keys(EX_MAP).find(n => slugOf(n) === slug);
+  if(!nombre) return null;
+  const grupo = grupoOf(nombre);
+  const vista = MM_VISTA[grupo] || 'frente';
+  const marcadas = new Set((MM_INDICE[vista] || {})[grupo] || []);
+  const piezas = siluetaFormas(vista).map((f, i) => {
+    const on = marcadas.has(i);
+    return f.replace('/>', ` fill="${on ? MM_ACC : MM_DIM}" opacity="${on ? 1 : 0.45}"/>`);
+  });
+  return `<svg viewBox="0 0 100 132" style="width:100%;height:${alto||160}px;display:block" role="img"
+      aria-label="Músculo trabajado: ${GRUPO_TXT[grupo]||grupo}">${piezas.join('')}
+      <text x="50" y="130" fill="#8fa8a0" font-size="7" text-anchor="middle">${vista}</text></svg>`;
+}
+
+/* Puntos de técnica. Texto fijo, revisado, sin llamadas a ningún modelo. */
+const TECNICA = {
+  'sentadilla-hack':['Espalda pegada al respaldo todo el recorrido','Rodillas siguen la línea de los pies, no hacia dentro','Baja hasta que el muslo quede paralelo, sin rebotar'],
+  'sentadilla-goblet':['Pesa pegada al pecho, codos por dentro de las rodillas','Talones en el suelo, pecho arriba','Baja controlado y sube empujando el piso'],
+  'prensa':['No estires del todo la rodilla al final','Baja hasta 90° sin que la cadera se despegue','Pies a la anchura de los hombros'],
+  'peso-muerto':['La barra roza la pierna todo el recorrido','La cadera y el pecho suben a la vez','Espalda recta: si se redondea, baja el peso'],
+  'hiperextension-baja':['Sube solo hasta alinear el tronco, no más','Movimiento desde la cadera, no desde la espalda baja','Barbilla metida, cuello neutro'],
+  'desplantes':['Rodilla de atrás baja hasta casi tocar','Tronco vertical, no te inclines al frente','Empuja con el talón de la pierna de adelante'],
+  'bulgaras':['El pie de atrás solo da equilibrio, no empuja','Inclina un poco el tronco para cargar el glúteo','Rodilla de adelante estable, sin bailar'],
+  'press-banca-inclinado':['Omóplatos juntos y hombros hacia atrás','La barra baja a la parte alta del pecho','Muñecas rectas, no dobladas hacia atrás'],
+  'fondos-paralelas':['Ligera inclinación al frente para cargar el pecho','Baja hasta que el codo llegue a 90°','No encojas los hombros hacia las orejas'],
+  'press-militar-barra':['Aprieta glúteos y abdomen: nada de arquear la espalda','La barra pasa cerca de la cara, no por delante','Termina con la barra sobre la mitad del pie'],
+  'press-militar-mancuernas':['Codos ligeramente al frente, no abiertos del todo','No choques las mancuernas arriba','Baja hasta la altura de la barbilla'],
+  'aperturas-mancuerna':['Codo con una flexión fija durante todo el recorrido','Abre hasta sentir estiramiento, sin forzar el hombro','Es un abrazo, no un press'],
+  'elevaciones-laterales':['Sube hasta la altura del hombro, no más','Codo un poco más alto que la muñeca','Sin impulso de cadera: si lo necesitas, baja el peso'],
+  'elevaciones-frontales':['Sube hasta la altura de los ojos','Sin balanceo del tronco','Alterna los brazos si te cuesta controlarlo'],
+  'posterior-pajaros':['Tronco casi paralelo al suelo','Abre con los codos, no con las manos','Sin encoger los omóplatos al final'],
+  'dominadas':['Empieza colgado del todo, brazos estirados','Lleva el pecho a la barra, no la barbilla','Baja controlado, no te dejes caer'],
+  'jalon-al-pecho':['Pecho arriba y ligera inclinación atrás','La barra baja a la clavícula, nunca a la nuca','Tira con los codos hacia el bolsillo'],
+  'remo-unilateral-mancuerna':['Espalda paralela al suelo y quieta','Tira hacia la cadera, no hacia el hombro','Sin rotar el tronco para levantar más'],
+  'remo-alto-abierto':['Codos altos y abiertos','Aprieta los omóplatos al final','Ligero, este no es de fuerza'],
+  'curl-biceps-barra':['Codos pegados al costado, quietos','Sin balancear la espalda','Baja despacio: la bajada es la mitad del trabajo'],
+  'curl-spider':['El brazo apoyado no se mueve','Estira del todo abajo','Aprieta arriba un segundo'],
+  'press-frances':['Solo se mueve el antebrazo','Codos apuntando al techo, sin abrirse','Baja hasta la frente, controlado'],
+  'extension-triceps-polea':['Codos pegados al cuerpo','Estira del todo abajo','No uses el peso del cuerpo para bajar'],
+  'extension-cuadriceps':['Sin latigazo: sube controlado','Aguanta un segundo arriba','Espalda pegada al respaldo'],
+  'curl-femoral':['Cadera pegada al banco todo el tiempo','Sube completo y baja despacio','Sin arquear la espalda baja'],
+  'abductor':['Movimiento lento en los dos sentidos','Espalda apoyada, sin echarte al frente','Rango completo, sin rebotes'],
+  'pantorrilla':['Sube hasta la punta del pie del todo','Baja hasta sentir estiramiento','Sin rebotar: pausa arriba y abajo'],
+  'antebrazo':['Solo se mueve la muñeca','Antebrazos apoyados y quietos','Rango corto, muchas repeticiones'],
+  'trabajo-cuello':['Movimiento muy lento y con poco peso','Rango corto y cómodo','Para si sientes cualquier molestia'],
+};
+
+function verDiagrama(ei, slug){
+  const caja = document.getElementById('diag-' + ei);
+  const btn  = document.querySelector(`#exList .ex:nth-child(${ei+1}) .verdiag`);
+  if(!caja) return;
+  const abierto = caja.classList.contains('on');
+  if(abierto){ caja.classList.remove('on'); caja.innerHTML=''; if(btn) btn.classList.remove('on'); return; }
+  const svg = mapaMuscularSVG(slug, 150);
+  if(!svg) return;
+  const tips = TECNICA[slug] || [];
+  caja.innerHTML = `<div class="diagwrap">${svg}
+    <div class="diaginfo"><h4>Puntos clave de técnica</h4>
+      <ul>${tips.map(t=>`<li>${t}</li>`).join('')}</ul>
+      <div class="diagleyenda">
+        <i style="background:#4ecfa8"></i>músculo que trabaja este ejercicio
+      </div>
+    </div></div>`;
+  caja.classList.add('on');
+  if(btn) btn.classList.add('on');
+}
+
+/* ====================================================================
    CALIFICACIÓN DEL ENTRENAMIENTO
    Misma fórmula que la vista v_session_score de la base. Si se cambian
    los pesos aquí hay que cambiarlos allá: la app tiene que poder
@@ -1423,7 +1554,10 @@ function renderExercises(){
   ROUTINES[r].ex.forEach((e,ei)=>{
     const [nm,tgt]=e, last=lastFor(nm), [rMin,rMax]=rirTgtOf(nm);
     const d=document.createElement('div'); d.className='ex';
-    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt} · RIR ${rMin}-${rMax}</span></div>`;
+    const hayDiag = !!mapaMuscularSVG(slugOf(nm));
+    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt} · RIR ${rMin}-${rMax}`+
+      (hayDiag? ` <button type="button" class="verdiag" onclick="verDiagrama(${ei},'${slugOf(nm)}')">ver</button>`:'')+
+      `</span></div><div class="diagbox" id="diag-${ei}"></div>`;
     if(last) h+=`<div class="last">Última vez (${fmt(last.date)}): ${last.sets.map(s=>
       s.w+'kg × '+s.r+(s.rir!=null?' @'+s.rir:'')).join('  ·  ')}</div>`;
     h+=`<div class="sets" id="sets-${ei}">
