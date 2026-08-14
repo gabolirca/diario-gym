@@ -707,6 +707,14 @@ button.btn.sm{min-height:34px}
   </div>
 
   <div class="card">
+    <h2>Versión</h2>
+    <p class="sub">La app se guarda en tu teléfono para funcionar sin internet. Si acabo de publicar
+      un cambio y no lo ves, fuerza la actualización desde aquí.</p>
+    <p style="margin:0 0 11px"><b id="verTxt">—</b></p>
+    <button class="btn gh" onclick="buscarActualizacion()">Buscar actualización</button>
+  </div>
+
+  <div class="card">
     <h2>Borrar todo</h2>
     <p class="sub">Elimina permanentemente todos tus registros. No se puede deshacer.</p>
     <button class="btn gh" style="border-color:var(--bad);color:var(--bad)" onclick="wipe()">Borrar todos los datos</button>
@@ -2579,9 +2587,53 @@ quizaAlta();
 initSupabase();
 
 /* ============ PWA ============ */
+/* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
+   saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
+const APP_VER = 'v2.0.5 · mapa muscular';
+/* Debe coincidir con el número de sw.js de esta misma publicación. */
+const SW_CACHE_LOCAL = '005';
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(reg=>{
+        reg.update();                                   // preguntar si hay una versión nueva
+        // Si llega una versión nueva, entra en cuanto termine de instalarse.
+        reg.addEventListener('updatefound',()=>{
+          const sw = reg.installing; if(!sw) return;
+          sw.addEventListener('statechange',()=>{
+            if(sw.state==='installed' && navigator.serviceWorker.controller) recargarLimpio();
+          });
+        });
+      }).catch(()=>{});
+  });
 }
+
+/* Deja el teléfono sin ninguna copia guardada y vuelve a pedir todo al servidor. */
+async function recargarLimpio(){
+  try{
+    if('caches' in window){ const ks = await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+    if('serviceWorker' in navigator){
+      const rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(r=>r.unregister()));
+    }
+  }catch(e){}
+  location.replace(location.pathname + '?v=' + Date.now());
+}
+
+async function buscarActualizacion(){
+  toast('Buscando…');
+  try{
+    const r = await fetch('sw.js?probe=' + Date.now(), {cache:'no-store'});
+    const txt = await r.text();
+    const m = txt.match(/diario-gym-v2-(\d+)/);
+    const enServidor = m ? m[1] : null;
+    if(enServidor && enServidor === SW_CACHE_LOCAL){ toast('Ya tienes la última versión'); return; }
+  }catch(e){ toast('Sin conexión'); return; }
+  await recargarLimpio();
+}
+
+document.getElementById('verTxt').textContent = APP_VER;
 function hideHint(){ try{localStorage.setItem('hideIosHint','1')}catch(e){}
   document.getElementById('iosHint').style.display='none'; }
 (function(){
