@@ -168,3 +168,37 @@ adivinados y la hipótesis H2 dejaría de ser verificable.
 select * from v_error_estimador;   -- MAE del estimador contra lo que la persona guardó
 select count(*) from food_scans;   -- una fila por foto, sin imágenes
 ```
+
+## Servicio de inferencia (solo v2)
+
+El bosque se entrena en Python y se **exporta a JSON**; la Edge Function
+`sugerir-carga` lo evalúa. Un árbol de decisión es una lista de comparaciones,
+así que no hace falta Python en producción.
+
+```bash
+python3 ml/generar_datos.py --usuarios 160 --semanas 20 --salida datos.csv
+python3 ml/exportar_modelo.py --datos datos.csv --salida v2/modelo.json \
+        --arboles 40 --profundidad 6 --hoja 20
+node -e "…"   # ml/evaluador.js comprueba la paridad con scikit-learn
+npx supabase functions deploy sugerir-carga
+```
+
+El archivo `v2/modelo.json` se sirve desde GitHub Pages y la función lo descarga
+una vez por instancia. Para apuntar a otro sitio: secreto `MODELO_URL`.
+
+**La predicción se guarda antes de entrenar.** Eso es lo que permite calcular el
+error después contra lo que la persona levantó de verdad, en `v_error_modelo`.
+Si la sugerencia se calculara en el teléfono y no quedara registrada, «el modelo
+acierta» sería imposible de comprobar.
+
+## Participantes de prueba
+
+```sql
+-- sembrar:  ejecutar supabase/demo_seed_v2.sql
+select * from v_admin_participantes where es_demo;
+select private.borrar_demos_ahora();      -- borrarlos ya
+```
+
+Van con `is_demo=true` y `demo_expires_at` a 30 días. `pg_cron` corre
+`private.borrar_demos_caducados()` cada madrugada. La restricción
+`profiles_caducidad_solo_demo` impide ponerle caducidad a una cuenta real.

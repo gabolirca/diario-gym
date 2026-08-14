@@ -461,6 +461,15 @@ button.btn.sm{min-height:34px}
 <!-- ================= PESAS ================= -->
 <div class="tab" id="t-pesas">
   <div class="card">
+    <h2>Carga sugerida</h2>
+    <p class="sub">El modelo mira tu historial —peso, repeticiones y RIR de las sesiones
+      anteriores— y propone con cuánto empezar hoy. Es una sugerencia: si te sientes mal,
+      dormiste tres horas o el peso no se mueve, mándala a volar.</p>
+    <button class="btn gh" id="sugBtn" onclick="pedirSugerencias()">Calcular sugerencia</button>
+    <div id="sugRes"></div>
+  </div>
+
+  <div class="card">
     <h2>Registrar sesión</h2>
     <p class="sub">Los pesos de la última vez aparecen arriba de cada ejercicio. Tu trabajo es igualarlos o superarlos.</p>
     <div id="bAviso"></div>
@@ -1020,6 +1029,85 @@ function saveSwim(){
     pace:document.getElementById('sPace').value, notes:document.getElementById('sNotes').value});
   D.swims.sort((a,b)=>a.date<b.date?-1:1); save(); render(); toast("Natación guardada");
   ['sM','sMin','sPace','sNotes'].forEach(i=>document.getElementById(i).value='');
+}
+
+/* ====================================================================
+   CARGA SUGERIDA POR EL MODELO
+
+   El bosque no corre aquí: corre en el servidor, que además deja escrita
+   la predicción ANTES de que entrenes. Eso es lo que permite medir el
+   error después contra lo que de verdad levantaste. Si la sugerencia se
+   calculara en el teléfono y no quedara registrada, «el modelo acierta»
+   sería una afirmación imposible de comprobar.
+   ==================================================================== */
+let SUG = null;
+
+async function pedirSugerencias(){
+  if(!SB || !SESSION) return toast('Necesitas iniciar sesión');
+  const b = document.getElementById('sugBtn');
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>Calculando…';
+  try{
+    const fecha = document.getElementById('wDate').value || today();
+    const { data, error } = await SB.functions.invoke('sugerir-carga', { body: { fecha } });
+    let cuerpo = data;
+    if(error && error.context && typeof error.context.json === 'function'){
+      try { cuerpo = await error.context.json(); } catch(e){}
+    }
+    if(cuerpo && cuerpo.error){ toast(cuerpo.error); return; }
+    if(error || !cuerpo){ toast('No se pudo calcular la sugerencia'); return; }
+    SUG = cuerpo;
+    pintarSugerencias(cuerpo);
+    renderExercises();                       // para que aparezcan junto a cada ejercicio
+  }catch(e){ toast('No se pudo calcular la sugerencia'); }
+  finally{ b.disabled = false; b.textContent = 'Calcular sugerencia'; }
+}
+
+function usarSugerencia(ei, kg){
+  const c = document.getElementById('sets-' + ei);
+  if(!c) return;
+  c.querySelectorAll('input.sw').forEach(i => { i.value = kg; });
+  toast('Ajusta si hoy no se siente bien');
+}
+
+function sugerenciaDe(slug){
+  if(!SUG) return null;
+  return (SUG.sugerencias || []).find(s => s.slug === slug) || null;
+}
+
+function pintarSugerencias(r){
+  const caja = document.getElementById('sugRes');
+  const s = r.sugerencias || [], sin = r.sin_historial || [];
+
+  if(!s.length && !sin.length){
+    caja.innerHTML = `<div class="note">Todavía no hay historial. Registra tu primera sesión
+      y en la siguiente ya habrá con qué comparar.</div>`;
+    return;
+  }
+
+  const filas = s.map(x => {
+    const d = x.cambio;
+    const col = d > 0 ? 'var(--acc)' : d < 0 ? 'var(--warn)' : 'var(--dim)';
+    const flecha = d > 0 ? '↑' : d < 0 ? '↓' : '=';
+    return `<tr>
+      <td>${textoSeguro(x.nombre || x.slug)}
+        ${x.recortado ? `<div class="p" title="${textoSeguro(x.razon)}">ajustada al límite de seguridad</div>` : ''}</td>
+      <td class="k">${x.actual} kg</td>
+      <td class="k" style="color:${col};font-weight:600">${flecha} ${x.sugerido} kg</td>
+    </tr>`;
+  }).join('');
+
+  caja.innerHTML =
+    (s.length ? `<div class="scanres on" style="margin-top:14px">
+       <table><tr><td class="p">Ejercicio</td><td class="k p">Última</td><td class="k p">Sugerido</td></tr>
+       ${filas}</table></div>` : '') +
+    (sin.length ? `<div class="note">Sin sugerencia todavía en:
+       ${sin.map(x => textoSeguro(x.nombre || x.slug)).join(', ')}.
+       El modelo necesita al menos dos sesiones del mismo ejercicio para tener con qué comparar.</div>` : '') +
+    `<div class="note"><b>${textoSeguro(r.modelo)}</b> · error medio de ${r.mae_kg} kg en validación,
+       frente a 1.77 kg de repetir la misma carga. Entrenado con ${textoSeguro(r.entrenado_con || 'datos sintéticos')}:
+       <b>todavía no ha visto entrenamientos reales</b>, así que trátalo como una hipótesis, no como un entrenador.
+       Cada sugerencia queda registrada antes de que entrenes, y su error se calcula después
+       contra lo que de verdad levantaste.</div>`;
 }
 
 /* ====================================================================
@@ -1770,6 +1858,12 @@ function renderExercises(){
       `</span></div><div class="diagbox" id="diag-${ei}"></div>`;
     if(last) h+=`<div class="last">Última vez (${fmt(last.date)}): ${last.sets.map(s=>
       s.w+'kg × '+s.r+(s.rir!=null?' @'+s.rir:'')).join('  ·  ')}</div>`;
+    // La sugerencia del modelo, si ya se pidió. No se rellena sola: que el
+    // número aparezca escrito invita a aceptarlo sin pensar.
+    const sg = sugerenciaDe(slugOf(nm));
+    if(sg) h+=`<div class="last" style="color:var(--acc)">El modelo sugiere
+      <b>${sg.sugerido} kg</b>${sg.cambio ? ` (${sg.cambio>0?'+':''}${sg.cambio})` : ' (igual)'}
+      <button type="button" class="verdiag" onclick="usarSugerencia(${ei},${sg.sugerido})">usar</button></div>`;
     h+=`<div class="sets" id="sets-${ei}">
           <div class="setlbl"><span></span><span>kg</span><span>reps</span><span class="rir">RIR</span><span></span></div>
         </div>
@@ -2795,9 +2889,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.0.6 · escáner de comida';
+const APP_VER = 'v2.1.0 · carga sugerida por el modelo';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '006';
+const SW_CACHE_LOCAL = '007';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
