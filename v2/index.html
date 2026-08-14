@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Diario de Entrenamiento</title>
+<title>Diario de Entrenamiento · v2</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -400,6 +400,20 @@ button.btn.sm{min-height:34px}
     <h2>Esta semana</h2>
     <p class="sub" id="weekSub">—</p>
     <div id="weekGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>Calificación del entrenamiento</h2>
+    <p class="sub" id="calSub">—</p>
+    <div id="calDesglose"></div>
+    <svg class="chart" id="chCal" style="height:200px;margin-top:14px"></svg>
+    <div class="lg"><span><i style="background:var(--acc)"></i>Calificación semanal</span></div>
+    <div class="note">
+      Se calcula con lo que registras: si el esfuerzo cayó en la ventana de RIR del ejercicio (40 %),
+      si progresaste respecto de la sesión anterior (25 %), qué tanto del registro completaste (20 %)
+      y si entrenaste cuando tocaba (15 %). <b>No hay nada estimado</b>: todo sale de peso,
+      repeticiones y RIR.
+    </div>
   </div>
 
   <div class="card">
@@ -845,17 +859,18 @@ function PLANV(){
 }
 const totalSemanas = () => PLANV().length;
 const protMeta = () => Math.round((D.cfg.w0 || 75) * 1.9);
-const KEY = "gymDiary_gabo_v1";
+const KEY = "gymDiary_v2";
 
 /* Supabase. La clave publicable es segura en el cliente: todo el acceso
    está limitado por las políticas RLS de la base. */
-const SUPA_URL = "https://ckvogrrzhdfdubqcwayn.supabase.co";
-const SUPA_KEY = "sb_publishable_sTfMoFyH0WHOGpFIlSu1Eg_6yy0QNVX";
+const SUPA_URL = "https://usaosgtherqnqwjhgbtt.supabase.co";
+const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
 
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[]}});
+       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[],
+       owner:null}});   // de qué cuenta son estos datos
 
 let D = load();
 function load(){
@@ -957,6 +972,111 @@ function nut7(){
   const last=D.nutrition.slice(-7), n=last.length;
   const s=(k)=>{const v=last.filter(x=>x[k]!=null); return v.length? v.reduce((a,b)=>a+b[k],0)/v.length : null;};
   return {days:n, kcal:s('kcal'), prot:s('prot'), target:s('target')};
+}
+
+/* ====================================================================
+   CALIFICACIÓN DEL ENTRENAMIENTO
+   Misma fórmula que la vista v_session_score de la base. Si se cambian
+   los pesos aquí hay que cambiarlos allá: la app tiene que poder
+   calificar sin conexión y el panel tiene que dar el mismo número.
+   ==================================================================== */
+const PESOS = {esfuerzo:40, progresion:25, registro:20, constancia:15};
+
+/* 1RM estimado medio de la sesión (Epley), sin series de calentamiento */
+function e1rmMedio(w){
+  const v = (w.sets||[]).filter(s=>s.r>0).map(s=>s.w*(1+s.r/30));
+  return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0;
+}
+
+function calificar(w, previa){
+  const sets   = w.sets || [];
+  const conRir = sets.filter(s => s.rir != null);
+  const dentro = conRir.filter(s => {
+    const [mn,mx] = rirTgtOf(s.ex);
+    return s.rir >= mn && s.rir <= mx;
+  });
+
+  // Sin RIR no hay forma de juzgar el esfuerzo: se da la mitad, ni premio ni castigo
+  const esfuerzo = (conRir.length ? dentro.length / conRir.length : 0.5) * PESOS.esfuerzo;
+  const registro = (sets.length   ? conRir.length / sets.length   : 0)   * PESOS.registro;
+
+  const act = e1rmMedio(w), ant = previa ? e1rmMedio(previa) : 0;
+  const fProg = !ant                  ? 0.70      // primera sesión
+              : act >= ant * 1.02     ? 1.00      // subió 2 % o más
+              : act >= ant            ? 0.85      // sostuvo
+              : act >= ant * 0.95     ? 0.60      // bajó poco
+              :                         0.30;
+  const progresion = fProg * PESOS.progresion;
+
+  const cada = Math.ceil(7 / Math.max(+D.cfg.dias || 4, 1));
+  const dias = previa ? Math.round((new Date(w.date) - new Date(previa.date)) / 864e5) : null;
+  const fCons = dias == null      ? 0.75
+              : dias <= cada + 1  ? 1.00
+              : dias <= 7         ? 0.70
+              : dias <= 14        ? 0.40
+              :                     0.15;
+  const constancia = fCons * PESOS.constancia;
+
+  const r1 = x => Math.round(x * 10) / 10;
+  return {
+    total: r1(esfuerzo + progresion + registro + constancia),
+    esfuerzo: r1(esfuerzo), progresion: r1(progresion),
+    registro: r1(registro), constancia: r1(constancia),
+    dentro: dentro.length, conRir: conRir.length, series: sets.length, dias
+  };
+}
+
+/* Calificación de cada sesión, en orden cronológico */
+function calificaciones(){
+  const ws = D.workouts.slice().sort((a,b)=>a.date<b.date?-1:1);
+  return ws.map((w,i)=>({w, c: calificar(w, i ? ws[i-1] : null)}));
+}
+const JUICIO = t => t>=85 ? ['Excelente','c-ok'] : t>=70 ? ['Buena','c-ok']
+               : t>=55 ? ['Aceptable','c-w'] : ['Floja','c-b'];
+
+function renderCalificacion(){
+  const cals = calificaciones();
+  const sub  = document.getElementById('calSub');
+  const box  = document.getElementById('calDesglose');
+  if(!cals.length){
+    sub.textContent = 'Registra una sesión para verla.';
+    box.innerHTML = ''; line('chCal', [], null); return;
+  }
+  const {w, c} = cals[cals.length - 1];
+  const [txt, chip] = JUICIO(c.total);
+
+  sub.innerHTML = `Última sesión · ${fmt(w.date)} · ${nombreRutina(w.routine)}`;
+  const barra = (nom, val, max, detalle) => `
+    <div class="fila" style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)">
+      <span style="color:var(--dim)">${nom}<div style="font-size:11.5px;margin-top:2px">${detalle}</div></span>
+      <span style="text-align:right;white-space:nowrap">
+        <b>${val}</b><span style="color:var(--dim)"> / ${max}</span>
+        <div class="bar" style="width:110px;margin:5px 0 0 auto;height:6px">
+          <i style="width:${Math.round(val/max*100)}%"></i></div>
+      </span></div>`;
+
+  box.innerHTML =
+    `<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+       <div style="font-size:44px;font-weight:700;letter-spacing:-2px">${c.total}</div>
+       <div><span class="chip ${chip}">${txt}</span>
+         <div style="color:var(--dim);font-size:12px;margin-top:3px">de 100 puntos</div></div>
+     </div>` +
+    barra('Esfuerzo', c.esfuerzo, PESOS.esfuerzo,
+          c.conRir ? `${c.dentro} de ${c.conRir} series en la ventana de RIR`
+                   : 'sin RIR reportado, no se puede juzgar') +
+    barra('Progresión', c.progresion, PESOS.progresion,
+          cals.length > 1 ? '1RM estimado contra la sesión anterior' : 'primera sesión registrada') +
+    barra('Registro', c.registro, PESOS.registro,
+          `${c.conRir} de ${c.series} series con RIR`) +
+    barra('Constancia', c.constancia, PESOS.constancia,
+          c.dias == null ? 'primera sesión' : `${c.dias} día${c.dias===1?'':'s'} desde la anterior`);
+
+  // Tendencia: promedio por semana del plan
+  const porSem = {};
+  cals.forEach(({w,c}) => { const s = weekOf(w.date); (porSem[s] = porSem[s] || []).push(c.total); });
+  const pts = Object.keys(porSem).map(k => [+k, porSem[k].reduce((a,b)=>a+b,0)/porSem[k].length])
+                    .sort((a,b)=>a[0]-b[0]);
+  line('chCal', [{pts, color:'#4ecfa8'}], null);
 }
 
 /* ====================================================================
@@ -1179,7 +1299,7 @@ function rpConsejos(seriesSesion, porGrupo, faltan, razon, filas){
    la página por memoria, todo lo capturado se perdía. Ahora cada tecla se
    guarda en el dispositivo y la sesión se restaura sola.
    ==================================================================== */
-const BKEY = 'gymDiary_borrador_v1';
+const BKEY = 'gymDiary_borrador_v2';
 let bTimer = null;
 
 function leerFormulario(){
@@ -1351,7 +1471,7 @@ function saveWorkout(){
   save();
   limpiarBorrador();          // la sesión ya está guardada: el borrador sobra
   ['wNotes','wRpe','wDur'].forEach(i=>document.getElementById(i).value='');
-  renderExercises(); render();
+  renderExercises(); render(); renderCalificacion();
   toast(sinRir ? `Guardada · ${sinRir} serie${sinRir>1?'s':''} sin RIR` : "Sesión guardada: "+sets.length+" series");
 }
 const e1rm=(w,r)=>w*(1+r/30);
@@ -1441,11 +1561,19 @@ function render(){
       '</tr>').join('')+'</table></div>';
 
   // Recientes
-  const rc=D.workouts.slice(-5).reverse();
+  const cals = calificaciones();
+  const notaDe = {};
+  cals.forEach(({w,c}) => { notaDe[(w.uid || w.date + w.routine)] = c.total; });
+  const rc = D.workouts.slice(-5).reverse();
   document.getElementById('recent').innerHTML = rc.length
-    ? '<div class="tw"><table><tr><th>Fecha</th><th>Rutina</th><th>Series</th><th>Volumen</th></tr>'+
-      rc.map(x=>{const v=x.sets.reduce((s,y)=>s+y.w*y.r,0);
-      return `<tr><td>${fmt(x.date)}</td><td>${nombreRutina(x.routine)}</td><td>${x.sets.length}</td><td>${(v/1000).toFixed(1)} t</td></tr>`}).join('')+'</table></div>'
+    ? '<div class="tw"><table><tr><th>Fecha</th><th>Rutina</th><th>Series</th><th>Volumen</th><th>Calif.</th></tr>'+
+      rc.map(x=>{
+        const v = x.sets.reduce((s,y)=>s+y.w*y.r,0);
+        const n = notaDe[(x.uid || x.date + x.routine)];
+        const ch = n==null ? '<span class="chip c-n">—</span>'
+                 : `<span class="chip ${JUICIO(n)[1]}">${n}</span>`;
+        return `<tr><td>${fmt(x.date)}</td><td>${nombreRutina(x.routine)}</td>
+        <td>${x.sets.length}</td><td>${(v/1000).toFixed(1)} t</td><td>${ch}</td></tr>`}).join('')+'</table></div>'
     : '<div class="empty">Todavía no hay entrenamientos registrados.</div>';
 
   // PRs
@@ -1673,6 +1801,26 @@ async function onSession(s){
   if(s){
     inn.style.display=''; out.style.display='none';
     document.getElementById('auWho').textContent = s.user.email;
+
+    // Este navegador ya tenía datos de OTRA cuenta. Sin esta comprobación,
+    // al cambiar de cuenta se suben los datos ajenos como propios: es
+    // exactamente así como se mezclaron dos cuentas.
+    if(D.cfg.owner && D.cfg.owner !== s.user.id){
+      const hayDatos = D.workouts.length || D.weights.length || D.nutrition.length;
+      if(hayDatos && !confirm(
+          'Este dispositivo tiene datos guardados de otra cuenta.\n\n' +
+          'Aceptar: se borran de este navegador y se cargan los de ' + s.user.email +
+          ' (lo borrado ya está en la nube de la otra cuenta).\n\n' +
+          'Cancelar: se cierra la sesión y no se toca nada.')){
+        await SB.auth.signOut();
+        return;
+      }
+      D = EMPTY();
+      limpiarBorrador();
+    }
+    D.cfg.owner = s.user.id;
+    save(true);
+
     setSync('','Conectando...');
     try{
       await loadCatalog();
@@ -1745,7 +1893,16 @@ async function doSignIn(){
 }
 async function doSignOut(){
   if(!SB) return;
+  const limpiar = confirm(
+    '¿Borrar también los datos de este navegador?\n\n' +
+    'Aceptar: se borran de aquí (siguen guardados en tu cuenta en la nube).\n' +
+    'Recomendado si otra persona va a usar este dispositivo.\n\n' +
+    'Cancelar: se quedan en este navegador.');
   await SB.auth.signOut();
+  if(limpiar){
+    try{ localStorage.removeItem(KEY); localStorage.removeItem(BKEY); }catch(e){}
+    location.reload(); return;
+  }
   toast('Sesión cerrada · los datos siguen en este dispositivo');
 }
 
@@ -1831,6 +1988,11 @@ async function pushLocalToCloud(){
   if(!SB||!SESSION) return toast('Inicia sesión primero');
   if(!CATALOG) await loadCatalog();
   const u=SESSION.user.id;
+  // Segunda línea de defensa: nunca subir datos que son de otra cuenta
+  if(D.cfg.owner && D.cfg.owner !== u){
+    setSync('err','Datos de otra cuenta · no se subió nada');
+    return false;
+  }
   setSync('','Subiendo...');
   try{
     await guardarPerfil();
@@ -1873,16 +2035,28 @@ async function pushLocalToCloud(){
         session_rpe:w.rpe??null, duration_min:w.dur??null, notes:w.notes||null
       },{onConflict:'user_id,client_uid'}).select('id').single();
       if(we) throw we;
-      await SB.from('workout_sets').delete().eq('workout_id',wr.id);
-      const rows=[], seen={};
+      // Se arman las filas ANTES de borrar nada. Si no hay nada que subir,
+      // no se toca el servidor: borrar y no poder reinsertar fue lo que
+      // destruyó sesiones ya guardadas.
+      const rows=[], seen={}, omitidos=[];
       for(const s of (w.sets||[])){
         const eid = CATALOG.ex[s.slug || slugOf(s.ex)];
-        if(!eid) continue;                       // ejercicio fuera del catálogo: se omite
+        if(!eid){ omitidos.push(s.ex); continue; }
         seen[eid]=(seen[eid]||0)+1;
         rows.push({workout_id:wr.id, exercise_id:eid, set_index:seen[eid],
                    weight_kg:s.w, reps:s.r, rir:(s.rir==null?null:s.rir)});
       }
-      if(rows.length) await SB.from('workout_sets').insert(rows);
+      if(omitidos.length) console.warn('Series omitidas, ejercicio desconocido:', omitidos);
+
+      if(rows.length){
+        await SB.from('workout_sets').delete().eq('workout_id',wr.id);
+        const {error:es} = await SB.from('workout_sets').insert(rows);
+        if(es) throw es;                         // que falle ruidosamente, no en silencio
+      } else if((w.sets||[]).length){
+        // Había series locales pero ninguna se pudo traducir: es un error,
+        // no un motivo para vaciar lo que ya estaba guardado.
+        throw new Error('No se pudo traducir ninguna serie de la sesión del '+w.date);
+      }
     }
 
     save(true);
@@ -1901,13 +2075,17 @@ async function pullFromCloud(){
   if(!CATALOG) await loadCatalog();
   const nameBySlug={}; Object.entries(EX_MAP).forEach(([n,v])=>nameBySlug[v[0]]=n);
 
+  // SIEMPRE filtrar por usuario. El investigador tiene permiso de lectura
+  // sobre todos los participantes: sin este filtro, su app se descargaba
+  // los datos de todo el mundo y luego los volvía a subir como propios.
+  const u = SESSION.user.id;
   const [bw,bm,sl,nu,sw,wo] = await Promise.all([
-    SB.from('body_weights').select('*').order('measured_on'),
-    SB.from('body_measures').select('*').order('measured_on'),
-    SB.from('sleep_logs').select('*').order('logged_on'),
-    SB.from('nutrition_logs').select('*').order('logged_on'),
-    SB.from('swims').select('*').order('performed_on'),
-    SB.from('workouts').select('*,workout_sets(*)').order('performed_on')
+    SB.from('body_weights').select('*').eq('user_id',u).order('measured_on'),
+    SB.from('body_measures').select('*').eq('user_id',u).order('measured_on'),
+    SB.from('sleep_logs').select('*').eq('user_id',u).order('logged_on'),
+    SB.from('nutrition_logs').select('*').eq('user_id',u).order('logged_on'),
+    SB.from('swims').select('*').eq('user_id',u).order('performed_on'),
+    SB.from('workouts').select('*,workout_sets(*)').eq('user_id',u).order('performed_on')
   ]);
   if(bw.error||wo.error) throw (bw.error||wo.error);
 
@@ -2242,6 +2420,7 @@ function init(){
   document.title = 'Diario de Entrenamiento' + (D.cfg.nombre ? ' · '+D.cfg.nombre : '');
   aplicarNado();
   renderExercises(); render(); drawCharts();
+  renderCalificacion();
   revisarBorrador();
   rpInit();
 }

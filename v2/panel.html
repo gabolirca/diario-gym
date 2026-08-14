@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel del estudio · GymAI</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0f1c19">
+<style>
+:root{
+  --bg:#0f1c19; --card:#162622; --card2:#1c2f2a; --line:#2a423b;
+  --ink:#e8f0ed; --dim:#8fa8a0; --acc:#4ecfa8; --acc2:#2f6a5e;
+  --warn:#e8a33d; --bad:#e2674f; --good:#4ecfa8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px 70px}
+
+header{padding:24px 0 16px;border-bottom:1px solid var(--line);margin-bottom:22px;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header h1{margin:0;font-size:21px;letter-spacing:-.3px}
+header .s{color:var(--dim);font-size:13px;margin-top:4px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+nav{display:flex;gap:4px;margin-bottom:22px}
+nav button{background:none;border:none;color:var(--dim);padding:9px 16px;border-radius:8px;
+  font-size:14px;cursor:pointer;font-family:inherit;font-weight:500}
+nav button.on{background:var(--acc);color:#08201a;font-weight:600}
+.tab{display:none} .tab.on{display:block}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:16px;letter-spacing:-.2px}
+.card h2 + .sub{color:var(--dim);font-size:13px;margin:0 0 14px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+.kpi .v{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-1px}
+.kpi .d{font-size:12px;margin-top:3px;color:var(--dim)}
+
+label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+input,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--ink);
+  padding:12px;border-radius:8px;font-size:16px;font-family:inherit;-webkit-appearance:none}
+input:focus{outline:none;border-color:var(--acc)}
+button.btn{background:var(--acc);color:#08201a;border:none;padding:11px 20px;border-radius:8px;
+  font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
+button.gh{background:none;border:1px solid var(--line);color:var(--dim)}
+button.gh:hover{color:var(--ink);border-color:var(--acc)}
+button.sm{padding:7px 13px;font-size:12.5px;min-height:34px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+  padding:9px 8px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+.tw{overflow-x:auto}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.c-ok{background:rgba(78,207,168,.15);color:var(--acc)}
+.c-w{background:rgba(232,163,61,.15);color:var(--warn)}
+.c-b{background:rgba(226,103,79,.15);color:var(--bad)}
+.c-n{background:rgba(143,168,160,.15);color:var(--dim)}
+
+.empty{color:var(--dim);text-align:center;padding:34px 16px;font-size:14px}
+.chart{width:100%;height:250px}
+.lg{display:flex;gap:16px;font-size:12px;color:var(--dim);margin-top:8px;flex-wrap:wrap}
+.lg i{display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:5px}
+.note{font-size:12.5px;color:var(--dim);margin-top:12px;line-height:1.65}
+.alerta{background:rgba(232,163,61,.08);border:1px solid var(--warn);border-radius:10px;padding:13px 15px;margin-bottom:10px;font-size:13.5px}
+.alerta.grave{background:rgba(226,103,79,.08);border-color:var(--bad)}
+.alerta b{color:var(--ink)}
+.demo{background:rgba(232,163,61,.12);border:1px solid var(--warn);border-radius:10px;
+  padding:14px 16px;margin-bottom:18px;font-size:14px;line-height:1.6}
+.demo b{color:var(--warn);text-transform:uppercase;letter-spacing:.8px;font-size:12px;display:block;margin-bottom:4px}
+.c-demo{background:rgba(232,163,61,.2);color:var(--warn)}
+
+#login{max-width:400px;margin:12vh auto;padding:0 18px}
+.pw{position:relative}
+.pw input{padding-right:74px}
+.pw .ojo{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;
+  color:var(--dim);font-size:11px;cursor:pointer;padding:9px 10px;font-family:inherit;
+  text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.pw .ojo:hover{color:var(--acc)}
+.enlace{background:none;border:none;color:var(--acc);font-family:inherit;font-size:13px;
+  cursor:pointer;padding:0;text-decoration:underline}
+#login h1{font-size:23px;margin:0 0 6px}
+#login p{color:var(--dim);font-size:14px;margin:0 0 22px;line-height:1.6}
+#app{display:none}
+.err{color:var(--bad);font-size:13px;margin-top:12px;min-height:18px}
+.modo{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim)}
+.modo input{width:auto}
+@media(max-width:640px){ .wrap{padding:0 13px 60px} header h1{font-size:18px} .kpi .v{font-size:24px} }
+</style>
+</head>
+<body>
+
+<!-- ===================== ACCESO ===================== -->
+<div id="login">
+  <h1>Panel del estudio</h1>
+  <p>Acceso restringido al investigador responsable. Los participantes usan la aplicación normal.</p>
+  <div style="margin-bottom:14px"><label>Correo</label><input type="email" id="email" autocomplete="email"></div>
+  <div style="margin-bottom:18px"><label>Contraseña</label>
+    <div class="pw"><input type="password" id="pass" autocomplete="current-password">
+      <button type="button" class="ojo" onclick="verPass(this,'pass')">Ver</button></div></div>
+  <button class="btn" style="width:100%" onclick="entrar()">Entrar</button>
+  <div style="margin-top:12px;text-align:center">
+    <button class="enlace" onclick="recuperar()">¿Olvidaste tu contraseña?</button>
+  </div>
+  <div class="err" id="errLogin"></div>
+</div>
+
+<!-- ===================== PANEL ===================== -->
+<div id="app">
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Panel del estudio · GymAI</h1>
+      <div class="s" id="hdSub">—</div>
+    </div>
+    <div class="tools">
+      <label class="modo"><input type="checkbox" id="anon" onchange="pintar()"> Modo feria (oculta nombres)</label>
+      <button class="btn gh sm" onclick="cargar()">Actualizar</button>
+      <button class="btn gh sm" onclick="salir()">Salir</button>
+    </div>
+  </header>
+
+  <div id="avisoDemo"></div>
+
+  <nav>
+    <button class="on" data-t="seg">Seguimiento</button>
+    <button data-t="feria">Presentación</button>
+  </nav>
+
+  <!-- ---------- SEGUIMIENTO ---------- -->
+  <div class="tab on" id="t-seg">
+    <div class="kpis">
+      <div class="kpi"><div class="l">Participantes</div><div class="v" id="kPart">—</div><div class="d" id="kPartD">—</div></div>
+      <div class="kpi"><div class="l">Sesiones registradas</div><div class="v" id="kSes">—</div><div class="d" id="kSesD">—</div></div>
+      <div class="kpi"><div class="l">Series con RIR</div><div class="v" id="kRir">—</div><div class="d">Sin RIR no sirven al modelo</div></div>
+      <div class="kpi"><div class="l">Filas para entrenar</div><div class="v" id="kFilas">—</div><div class="d">Con consentimiento y objetivo</div></div>
+    </div>
+
+    <div id="alertas"></div>
+
+    <div class="card">
+      <h2>Participantes</h2>
+      <p class="sub">El porcentaje de RIR es lo que decide si sus datos entran al modelo.</p>
+      <div class="tw"><table id="tPart"></table></div>
+      <div class="note">
+        <b>Días sin entrenar</b> en rojo a partir de 7: es cuando conviene escribirles.
+        <b>% RIR</b> en rojo por debajo de 50: están registrando peso y repeticiones pero no el esfuerzo,
+        y esas series no se pueden recuperar después.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Progreso por ejercicio</h2>
+      <p class="sub">Primer 1RM estimado contra el mejor alcanzado.</p>
+      <div class="tw"><table id="tEjer"></table></div>
+    </div>
+  </div>
+
+  <!-- ---------- PRESENTACIÓN ---------- -->
+  <div class="tab" id="t-feria">
+    <div class="kpis">
+      <div class="kpi"><div class="l">Participantes activos</div><div class="v" id="fPart">—</div><div class="d">Con al menos una sesión</div></div>
+      <div class="kpi"><div class="l">Series registradas</div><div class="v" id="fSeries">—</div><div class="d">Con carga, repeticiones y esfuerzo</div></div>
+      <div class="kpi"><div class="l">Toneladas movidas</div><div class="v" id="fTon">—</div><div class="d">Volumen acumulado del estudio</div></div>
+      <div class="kpi"><div class="l">Semanas de registro</div><div class="v" id="fSem">—</div><div class="d">Del participante más antiguo</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Volumen semanal por participante</h2>
+      <p class="sub">Toneladas movidas por semana. La constancia importa más que la pendiente.</p>
+      <svg class="chart" id="chTon"></svg>
+      <div class="lg" id="lgTon"></div>
+    </div>
+
+    <div class="card">
+      <h2>Progresión de fuerza</h2>
+      <p class="sub">1RM estimado promedio por semana, fórmula de Epley.</p>
+      <svg class="chart" id="chFuerza"></svg>
+      <div class="lg" id="lgFuerza"></div>
+    </div>
+
+    <div class="card">
+      <h2>El modelo predictivo</h2>
+      <p class="sub">Resultados sobre datos simulados. Todavía no opera en producción.</p>
+      <div class="tw"><table>
+        <tr><th>Modelo</th><th class="num">Error medio</th><th class="num">Dentro de un disco</th><th class="num">vs. heurística</th></tr>
+        <tr><td>Repetir la misma carga</td><td class="num">1.796 kg</td><td class="num">92.2 %</td><td class="num">—</td></tr>
+        <tr><td>Progresión lineal</td><td class="num">3.412 kg</td><td class="num">72.9 %</td><td class="num">−90.0 %</td></tr>
+        <tr><td>Lineal doble por RIR</td><td class="num">1.848 kg</td><td class="num">96.9 %</td><td class="num">−2.9 %</td></tr>
+        <tr style="background:rgba(78,207,168,.07)"><td><b>Bosque aleatorio</b></td><td class="num"><b>0.951 kg</b></td><td class="num"><b>95.6 %</b></td><td class="num"><b>+47.0 %</b></td></tr>
+      </table></div>
+      <div class="note">
+        Estas cifras provienen de <b>datos simulados</b> con un modelo de condición-fatiga, no de los
+        participantes. Validan el método, no el fenómeno. El objetivo del estudio es repetir la medición
+        con datos reales.
+        <br><br>
+        Un hallazgo del propio análisis: las variables nutricionales <b>no</b> mejoran la predicción de la
+        carga de la siguiente sesión, porque su efecto llega mediado por el esfuerzo percibido, que el
+        modelo ya observa. Esto obligó a reformular una de las hipótesis del proyecto.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const SUPA_URL = "https://usaosgtherqnqwjhgbtt.supabase.co";
+const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
+
+let SB=null, DATA={participantes:[], progreso:[], ejercicios:[]};
+const $ = id => document.getElementById(id);
+const COLORES = ['#4ecfa8','#e8a33d','#7fa6e8','#e2674f','#b98fe8','#6fd0c8','#d8c76a'];
+
+/* Nombre o código, según el modo */
+const etiqueta = p => $('anon').checked ? p.codigo : (p.nombre || p.codigo);
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); $('t-'+b.dataset.t).classList.add('on');
+  if(b.dataset.t==='feria') graficas();
+});
+
+async function init(){
+  try{
+    const m = await import('https://esm.sh/@supabase/supabase-js@2');
+    SB = m.createClient(SUPA_URL, SUPA_KEY, {auth:{persistSession:true, autoRefreshToken:true}});
+  }catch(e){ $('errLogin').textContent='No se pudo conectar con el servidor.'; return; }
+  const {data} = await SB.auth.getSession();
+  if(data.session) await tras_entrar();
+}
+
+function verPass(btn, id){
+  const el = $(id), mostrar = el.type === 'password';
+  el.type = mostrar ? 'text' : 'password';
+  btn.textContent = mostrar ? 'Ocultar' : 'Ver';
+}
+
+/* El enlace de recuperación lleva a la app, que es donde se elige la
+   contraseña nueva. Después se vuelve aquí a entrar. */
+async function recuperar(){
+  const email = $('email').value.trim();
+  if(!email.includes('@')) return $('errLogin').textContent = 'Escribe tu correo arriba primero.';
+  if(!SB) return $('errLogin').textContent = 'Sin conexión con el servidor.';
+  const {error} = await SB.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname.replace(/panel\.html$/, 'index.html')
+  });
+  if(error) return $('errLogin').textContent = error.message;
+  $('errLogin').style.color = 'var(--acc)';
+  $('errLogin').textContent = 'Enlace enviado. Ábrelo, elige tu contraseña nueva y vuelve aquí.';
+}
+
+async function entrar(){
+  if(!SB) return $('errLogin').textContent='Sin conexión con el servidor.';
+  $('errLogin').textContent='Entrando…';
+  const {error} = await SB.auth.signInWithPassword({
+    email:$('email').value.trim(), password:$('pass').value});
+  if(error) return $('errLogin').textContent = error.message;
+  await tras_entrar();
+}
+
+async function tras_entrar(){
+  // La base decide si esta cuenta es de investigador; el cliente no puede fingirlo
+  const {data:{user}} = await SB.auth.getUser();
+  const {data:perfil} = await SB.from('profiles').select('is_admin,display_name').eq('id',user.id).maybeSingle();
+  if(!perfil || !perfil.is_admin){
+    $('errLogin').textContent = 'Esta cuenta no tiene acceso al panel. Si eres participante, usa la aplicación normal.';
+    await SB.auth.signOut();
+    return;
+  }
+  $('login').style.display='none';
+  $('app').style.display='block';
+  $('hdSub').textContent = (perfil.display_name||user.email) + ' · investigador responsable';
+  await cargar();
+}
+
+async function salir(){ await SB.auth.signOut(); location.reload(); }
+
+async function cargar(){
+  const [pa,pr,ej] = await Promise.all([
+    SB.from('v_admin_participantes').select('*').order('codigo'),
+    SB.from('v_admin_progreso').select('*').order('semana'),
+    SB.from('v_admin_ejercicios').select('*')
+  ]);
+  DATA = {participantes: pa.data||[], progreso: pr.data||[], ejercicios: ej.data||[]};
+  pintar();
+}
+
+/* ------------------------------------------------------------------ */
+function pintar(){
+  const P = DATA.participantes;
+
+  // Aviso de datos inventados. La marca viene de la base (profiles.is_demo),
+  // no de una bandera del cliente: no se puede apagar desde aquí.
+  const demos = P.filter(p=>p.es_demo);
+  const reales = P.filter(p=>!p.es_demo);
+  $('avisoDemo').innerHTML = demos.length
+    ? `<div class="demo"><b>Modo demostración</b>
+        ${demos.length} de ${P.length} participantes son <b style="display:inline;text-transform:none;letter-spacing:0;font-size:14px">datos inventados</b>
+        para poder enseñar el panel. Aparecen con la etiqueta DEMO.
+        Participantes reales con registro: <b style="display:inline;text-transform:none;letter-spacing:0;font-size:14px">${reales.filter(p=>p.sesiones>0).length}</b>.
+        No deben usarse para ninguna conclusión del estudio.</div>`
+    : '';
+
+  const conAlta   = P.filter(p=>p.dado_de_alta).length;
+  const sesiones  = P.reduce((a,b)=>a+(b.sesiones||0),0);
+  const series    = P.reduce((a,b)=>a+(b.series||0),0);
+  const conRir    = P.reduce((a,b)=>a+(b.series_con_rir||0),0);
+
+  $('kPart').textContent  = P.length;
+  $('kPartD').textContent = conAlta+' con cuestionario completo';
+  $('kSes').textContent   = sesiones;
+  $('kSesD').textContent  = series+' series';
+  $('kRir').textContent   = series? Math.round(conRir/series*100)+' %' : '—';
+  // Solo cuentan quienes consintieron; y hacen falta 3 sesiones por ejercicio para tener rezagos
+  const utiles = P.filter(p=>p.consiente).reduce((a,b)=>a+Math.max(0,(b.sesiones||0)-2),0);
+  $('kFilas').textContent = utiles;
+
+  // ---- Alertas ----
+  const al=[];
+  P.filter(p=>p.dias_sin_entrenar>=7).forEach(p=>al.push(
+    {g:p.dias_sin_entrenar>=14, t:`<b>${etiqueta(p)}</b> lleva ${p.dias_sin_entrenar} días sin registrar una sesión.`}));
+  P.filter(p=>p.series>0 && p.pct_rir<50).forEach(p=>al.push(
+    {g:p.pct_rir<20, t:`<b>${etiqueta(p)}</b> registra el ${p.pct_rir} % de sus series con RIR. Sin ese dato sus sesiones no entran al modelo.`}));
+  P.filter(p=>!p.dado_de_alta).forEach(p=>al.push(
+    {g:false, t:`<b>${etiqueta(p)}</b> creó cuenta pero no completó el cuestionario inicial.`}));
+  P.filter(p=>p.dado_de_alta && !p.consiente).forEach(p=>al.push(
+    {g:false, t:`<b>${etiqueta(p)}</b> no otorgó consentimiento: sus datos quedan fuera del análisis.`}));
+  $('alertas').innerHTML = al.length
+    ? al.map(a=>`<div class="alerta${a.g?' grave':''}">${a.t}</div>`).join('')
+    : (P.length? '<div class="alerta" style="background:rgba(78,207,168,.07);border-color:var(--acc2)">Todo en orden: nadie lleva una semana sin registrar y el RIR se está capturando.</div>' : '');
+
+  // ---- Tabla de participantes ----
+  $('tPart').innerHTML = P.length
+    ? '<tr><th>Participante</th><th>Objetivo</th><th class="num">Días/sem</th><th class="num">Sesiones</th>'+
+      '<th class="num">Sin entrenar</th><th class="num">% RIR</th><th class="num">Pesos</th><th class="num">Comidas</th><th>Consiente</th></tr>'+
+      P.map(p=>{
+        const dias = p.dias_sin_entrenar;
+        const chDias = dias==null? '<span class="chip c-n">sin datos</span>'
+          : `<span class="chip ${dias>=14?'c-b':dias>=7?'c-w':'c-ok'}">${dias} d</span>`;
+        const chRir = p.pct_rir==null? '<span class="chip c-n">—</span>'
+          : `<span class="chip ${p.pct_rir<20?'c-b':p.pct_rir<50?'c-w':'c-ok'}">${p.pct_rir} %</span>`;
+        return `<tr><td><b>${etiqueta(p)}</b>${p.es_demo?' <span class="chip c-demo">demo</span>':''}${p.dado_de_alta?'':' <span class="chip c-w">sin alta</span>'}</td>
+          <td style="color:var(--dim)">${OBJ[p.goal]||'—'}</td>
+          <td class="num">${p.dias_semana??'—'}</td>
+          <td class="num">${p.sesiones}</td>
+          <td class="num">${chDias}</td>
+          <td class="num">${chRir}</td>
+          <td class="num">${p.dias_peso}</td>
+          <td class="num">${p.dias_comida}</td>
+          <td>${p.consiente?'<span class="chip c-ok">sí</span>':'<span class="chip c-b">no</span>'}</td></tr>`;
+      }).join('')
+    : '<tr><td class="empty">Todavía no hay participantes registrados.</td></tr>';
+
+  // ---- Progreso por ejercicio ----
+  const E = DATA.ejercicios.slice().sort((a,b)=>(b.e1rm_maximo-b.e1rm_inicial)-(a.e1rm_maximo-a.e1rm_inicial));
+  const nombreDe = {}; P.forEach(p=>nombreDe[p.user_id]=etiqueta(p));
+  $('tEjer').innerHTML = E.length
+    ? '<tr><th>Participante</th><th>Ejercicio</th><th class="num">Sesiones</th><th class="num">1RM inicial</th>'+
+      '<th class="num">1RM máximo</th><th class="num">Cambio</th><th class="num">RIR medio</th></tr>'+
+      E.map(x=>{
+        const d = (x.e1rm_maximo!=null&&x.e1rm_inicial)? (x.e1rm_maximo-x.e1rm_inicial) : null;
+        const pct = (d!=null&&x.e1rm_inicial)? (d/x.e1rm_inicial*100) : null;
+        return `<tr><td>${nombreDe[x.user_id]||'—'}</td><td>${x.ejercicio}</td>
+          <td class="num">${x.sesiones}</td><td class="num">${x.e1rm_inicial??'—'}</td>
+          <td class="num">${x.e1rm_maximo??'—'}</td>
+          <td class="num">${pct!=null? `<span class="chip ${pct>0?'c-ok':pct<0?'c-b':'c-n'}">${pct>0?'+':''}${pct.toFixed(1)} %</span>`:'—'}</td>
+          <td class="num" style="color:var(--dim)">${x.rir_promedio??'—'}</td></tr>`;
+      }).join('')
+    : '<tr><td class="empty">Sin sesiones registradas todavía.</td></tr>';
+
+  // ---- Presentación ----
+  const activos = P.filter(p=>p.sesiones>0);
+  $('fPart').textContent   = activos.length;
+  $('fSeries').textContent = series.toLocaleString('es-MX');
+  $('fTon').textContent    = DATA.progreso.reduce((a,b)=>a+(+b.tonelaje_t||0),0).toFixed(1);
+  $('fSem').textContent    = DATA.progreso.length? Math.max(...DATA.progreso.map(x=>x.semana)) : 0;
+  if($('t-feria').classList.contains('on')) graficas();
+}
+const OBJ = {fat_loss:'Pérdida de grasa', recomp:'Recomposición',
+             muscle_gain:'Ganancia muscular', maintenance:'Mantenimiento'};
+
+/* ------------------------------------------------------------------ */
+function line(svgId, series, leyendaId){
+  const svg=$(svgId); const W=900,H=250,P={t:16,r:14,b:28,l:46};
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.innerHTML='';
+  const todos=series.flatMap(s=>s.pts.map(p=>p[1])).filter(v=>v!=null);
+  if(!todos.length){
+    svg.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#8fa8a0" font-size="14" text-anchor="middle">Sin datos todavía</text>`;
+    if(leyendaId) $(leyendaId).innerHTML=''; return;
+  }
+  let mn=Math.min(...todos), mx=Math.max(...todos);
+  const pad=(mx-mn)*.15||1; mn=Math.max(0,mn-pad); mx+=pad;
+  const xs=series.flatMap(s=>s.pts.map(p=>p[0]));
+  const x0=Math.min(...xs), x1=Math.max(...xs)||1;
+  const X=v=>P.l+(v-x0)/((x1-x0)||1)*(W-P.l-P.r), Y=v=>P.t+(1-(v-mn)/((mx-mn)||1))*(H-P.t-P.b);
+  let g='';
+  for(let i=0;i<=4;i++){ const v=mn+(mx-mn)*i/4, y=Y(v);
+    g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="#2a423b" stroke-width="1"/>
+        <text x="${P.l-7}" y="${y+4}" fill="#8fa8a0" font-size="11" text-anchor="end">${v.toFixed(1)}</text>`; }
+  series.forEach(s=>{
+    const pts=s.pts.filter(p=>p[1]!=null); if(!pts.length) return;
+    g+=`<path d="${pts.map((p,i)=>(i?'L':'M')+X(p[0])+' '+Y(p[1])).join(' ')}" fill="none"
+         stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    pts.forEach(p=>g+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.5" fill="${s.color}"/>`);
+  });
+  const paso=Math.max(1,Math.ceil((x1-x0)/8));
+  for(let v=x0;v<=x1;v+=paso)
+    g+=`<text x="${X(v)}" y="${H-8}" fill="#8fa8a0" font-size="11" text-anchor="middle">S${v}</text>`;
+  svg.innerHTML=g;
+  if(leyendaId) $(leyendaId).innerHTML =
+    series.map(s=>`<span><i style="background:${s.color}"></i>${s.nombre}</span>`).join('');
+}
+
+function graficas(){
+  const P=DATA.participantes.filter(p=>p.sesiones>0);
+  const ton=[], fue=[];
+  P.forEach((p,i)=>{
+    const filas=DATA.progreso.filter(x=>x.user_id===p.user_id).sort((a,b)=>a.semana-b.semana);
+    if(!filas.length) return;
+    const c=COLORES[i%COLORES.length], n=etiqueta(p);
+    ton.push({nombre:n + (p.es_demo?' (demo)':''), color:c, pts:filas.map(x=>[x.semana, +x.tonelaje_t])});
+    fue.push({nombre:n + (p.es_demo?' (demo)':''), color:c, pts:filas.map(x=>[x.semana, +x.e1rm_promedio])});
+  });
+  line('chTon', ton, 'lgTon');
+  line('chFuerza', fue, 'lgFuerza');
+}
+
+init();
+</script>
+</body>
+</html>
