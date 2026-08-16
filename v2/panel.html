@@ -161,6 +161,20 @@ tr:last-child td{border-bottom:none}
       <p class="sub">Primer 1RM estimado contra el mejor alcanzado.</p>
       <div class="tw"><table id="tEjer"></table></div>
     </div>
+
+    <div class="card" id="cardNat" style="display:none">
+      <h2>Natación</h2>
+      <p class="sub">Solo aparecen los participantes que registran nados. El marcador es el
+        <b>ritmo por 100 m en series de intervalos</b>: si nadan la misma distancia más rápido,
+        mejoraron, aunque el peso corporal no se haya movido.</p>
+      <div class="tw"><table id="tNat"></table></div>
+      <div class="note">
+        Los nados continuos y los de técnica cuentan para los metros totales pero no para el ritmo:
+        no son comparables entre sí y mezclarlos daría una curva que sube y baja por el tipo de
+        sesión, no por la condición. Hacen falta al menos dos series de intervalos para tener un
+        cambio.
+      </div>
+    </div>
   </div>
 
   <!-- ---------- PRESENTACIÓN ---------- -->
@@ -284,12 +298,14 @@ async function tras_entrar(){
 async function salir(){ await SB.auth.signOut(); location.reload(); }
 
 async function cargar(){
-  const [pa,pr,ej] = await Promise.all([
+  const [pa,pr,ej,na] = await Promise.all([
     SB.from('v_admin_participantes').select('*').order('codigo'),
     SB.from('v_admin_progreso').select('*').order('semana'),
-    SB.from('v_admin_ejercicios').select('*')
+    SB.from('v_admin_ejercicios').select('*'),
+    SB.from('v_admin_natacion').select('*').order('codigo')
   ]);
-  DATA = {participantes: pa.data||[], progreso: pr.data||[], ejercicios: ej.data||[]};
+  DATA = {participantes: pa.data||[], progreso: pr.data||[], ejercicios: ej.data||[],
+          natacion: na.data||[]};
   pintar();
 }
 
@@ -358,6 +374,36 @@ function pintar(){
           <td>${p.consiente?'<span class="chip c-ok">sí</span>':'<span class="chip c-b">no</span>'}</td></tr>`;
       }).join('')
     : '<tr><td class="empty">Todavía no hay participantes registrados.</td></tr>';
+
+  // ---- Natación ----
+  // La tarjeta entera desaparece si nadie nada: una tabla vacía solo estorba.
+  const N = DATA.natacion || [];
+  $('cardNat').style.display = N.length ? '' : 'none';
+  if(N.length){
+    const mmss = s => s==null ? '—' : Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
+    $('tNat').innerHTML =
+      '<tr><th>Participante</th><th class="num">Sesiones</th><th class="num">Km</th>'+
+      '<th class="num">Sin nadar</th><th class="num">Ritmo inicial</th><th class="num">Ritmo actual</th>'+
+      '<th class="num">Cambio</th></tr>' +
+      N.map(p=>{
+        const d = p.dias_sin_nadar;
+        const chD = d==null ? '<span class="chip c-n">—</span>'
+          : `<span class="chip ${d>=14?'c-b':d>=7?'c-w':'c-ok'}">${d} d</span>`;
+        // Negativo = menos segundos por 100 m = más rápido = mejoró.
+        const c = p.cambio_seg;
+        const chC = (c==null || p.sesiones_intervalos < 2)
+          ? '<span class="chip c-n">faltan series</span>'
+          : `<span class="chip ${c<0?'c-ok':c>0?'c-w':'c-n'}">${c<0?'−':c>0?'+':''}${Math.abs(c)} s`
+            + (p.cambio_pct!=null ? ` (${p.cambio_pct} %)` : '') + '</span>';
+        return `<tr><td><b>${etiqueta(p)}</b>${p.es_demo?' <span class="chip c-demo">demo</span>':''}</td>
+          <td class="num">${p.sesiones}</td>
+          <td class="num">${((p.metros_total||0)/1000).toFixed(1)}</td>
+          <td class="num">${chD}</td>
+          <td class="num">${mmss(p.ritmo_inicial_seg)}</td>
+          <td class="num">${mmss(p.ritmo_actual_seg)}</td>
+          <td class="num">${chC}</td></tr>`;
+      }).join('');
+  }
 
   // ---- Progreso por ejercicio ----
   const E = DATA.ejercicios.slice().sort((a,b)=>(b.e1rm_maximo-b.e1rm_inicial)-(a.e1rm_maximo-a.e1rm_inicial));

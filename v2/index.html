@@ -191,6 +191,25 @@ tr:last-child td{border-bottom:none}
 .c-w{background:rgba(232,163,61,.15);color:var(--warn)}
 .c-b{background:rgba(226,103,79,.15);color:var(--bad)}
 
+/* --- Comidas del día --- */
+.cm{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.cmh{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card2)}
+.cmh b{flex:1;font-size:13.5px}
+.cmh .kc{color:var(--acc);font-weight:600;font-size:13px}
+.cmbody{padding:9px 13px}
+.cmfila{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--dim);
+  padding:5px 0;border-bottom:1px solid var(--line)}
+.cmfila:last-child{border-bottom:none}
+.cmfila .n{flex:1;color:var(--ink)}
+.cmfila button{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:0 2px}
+.cmfila button:hover{color:var(--bad)}
+.cmvacio{color:var(--dim);font-size:12.5px;padding:6px 0}
+.cmacc{display:flex;gap:8px;padding:0 13px 11px;flex-wrap:wrap}
+.cmman{display:none;gap:8px;padding:0 13px 11px;flex-wrap:wrap;align-items:flex-end}
+.cmman.on{display:flex}
+.cmman input{width:88px;padding:9px 10px;font-size:15px}
+.cmman label{font-size:10px}
+
 /* --- Estimación de comida por foto --- */
 .fotorow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .fotoprev{width:104px;height:104px;object-fit:cover;border-radius:12px;border:1px solid var(--line);
@@ -578,28 +597,30 @@ button.btn.sm{min-height:34px}
   </div>
 
   <div class="card">
-    <h2>Estimar desde una foto</h2>
-    <p class="sub">Toma la foto de tu plato y el modelo estima las calorías y los macros.
-      Rellena el formulario de abajo para que tú lo revises y lo corrijas antes de guardar.</p>
-    <div class="fotorow">
+    <h2>Desayuno, comida y cena</h2>
+    <p class="sub">Registra cada comida cuando la comes. Al final del día sumas las tres
+      y revisas el total antes de guardarlo.</p>
+
+    <div class="row"><div><label>Día</label><input type="date" id="cmDate" onchange="renderComidas()"></div></div>
+
+    <div id="cmLista"></div>
+
+    <div class="fotorow" style="margin-top:6px">
       <img class="fotoprev" id="fotoPrev" alt="">
-      <div style="flex:1;min-width:200px">
-        <input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none"
-               onchange="analizarFoto(this.files[0]); this.value=''">
-        <button class="btn" id="fotoBtn" onclick="document.getElementById('fotoIn').click()">Tomar foto</button>
-        <div class="note" style="margin-top:9px" id="fotoEstado">
-          <b>La foto no se guarda.</b> Se manda al modelo, se usa para calcular y se descarta:
-          no queda copia en el servidor, en la base ni en el historial. Lo único que se registra
-          son los números y qué tanto los corregiste.
-        </div>
-      </div>
+      <div style="flex:1;min-width:200px"><div class="scanres" id="scanRes"></div></div>
     </div>
 
-    <div class="scanres" id="scanRes"></div>
+    <input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none"
+           onchange="analizarFoto(this.files[0]); this.value=''">
 
+    <div id="cmTotal"></div>
+
+    <div class="note" id="fotoEstado"><b>La foto no se guarda.</b> Se manda al modelo, se usa para
+      calcular y se descarta: no queda copia en el servidor, en la base ni en el historial. Lo único
+      que se registra son los números.</div>
     <div class="note">Una estimación por foto se equivoca fácil, sobre todo con guisos, salsas y
-      aceite. Úsala como punto de partida, no como medición: para el estudio solo cuentan los días
-      que capturas tú.</div>
+      aceite. Cada comida guarda si la capturaste tú o la estimó el modelo, y el día guarda qué
+      proporción vino de fotos: así el análisis puede separar lo medido de lo estimado.</div>
   </div>
 
   <div class="card">
@@ -675,6 +696,17 @@ button.btn.sm{min-height:34px}
     <h2>Volumen semanal de pesas</h2>
     <p class="sub">Toneladas movidas por semana (peso × reps sumado). Si cae mucho, estás perdiendo capacidad de trabajo.</p>
     <svg class="chart" id="chVol"></svg>
+  </div>
+
+  <div class="card" id="cardNado" style="display:none">
+    <h2>Ritmo de natación</h2>
+    <p class="sub">Segundos por cada 100 m en las series de intervalos. <b>Hacia abajo es mejor</b>:
+      significa que nadas la misma distancia más rápido.</p>
+    <svg class="chart" id="chNado"></svg>
+    <div class="note" id="nadoResumen"></div>
+    <div class="note">Solo se grafican los intervalos. Los nados continuos y los de técnica no son
+      comparables entre sí: mezclarlos daría una curva que sube y baja por el tipo de sesión, no
+      por tu condición.</div>
   </div>
 
   <div class="card">
@@ -944,7 +976,7 @@ const KEY = "gymDiary_v2";
 const SUPA_URL = "https://usaosgtherqnqwjhgbtt.supabase.co";
 const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
 
-const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],
+const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],comidas:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
        cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[],
@@ -1153,10 +1185,127 @@ function reducirImagen(file, lado){
   });
 }
 
+/* ====================================================================
+   DESAYUNO, COMIDA Y CENA
+
+   Registrar el día entero de una sentada obliga a acordarse de todo a las
+   once de la noche, que es justo cuando peor se recuerda. Tres registros
+   pequeños, cada uno en su momento, son más fieles.
+
+   Cada comida guarda de dónde salió: capturada o estimada por una foto.
+   El día guarda la proporción exacta, no una etiqueta, para que el
+   análisis pueda elegir después dónde poner el umbral.
+   ==================================================================== */
+const MEALS = [['desayuno','Desayuno'], ['comida','Comida'], ['cena','Cena']];
+let SCAN_MEAL = null;      // a qué comida se le va a sumar la foto que se está analizando
+
+const cmDia = () => document.getElementById('cmDate').value || today();
+const cmDe  = (m, f) => (D.comidas||[]).filter(c => c.date === (f || cmDia()) && c.meal === m);
+const cmSuma = arr => arr.reduce((a, c) => ({
+  kcal:(a.kcal||0)+(+c.kcal||0), prot:(a.prot||0)+(+c.prot||0),
+  carb:(a.carb||0)+(+c.carb||0), fat:(a.fat||0)+(+c.fat||0),
+  foto:(a.foto||0)+(c.src==='foto' ? (+c.kcal||0) : 0)}), {});
+
+function renderComidas(){
+  const f = cmDia();
+  document.getElementById('cmLista').innerHTML = MEALS.map(([m, nom])=>{
+    const filas = cmDe(m, f), s = cmSuma(filas);
+    return `<div class="cm">
+      <div class="cmh"><b>${nom}</b>
+        <span class="kc">${filas.length ? Math.round(s.kcal)+' kcal' : '—'}</span></div>
+      <div class="cmbody">${filas.length ? filas.map(c=>
+        `<div class="cmfila"><span class="n">${textoSeguro(c.nota || (c.src==='foto'?'Estimado por foto':'Capturado a mano'))}</span>
+           <span>${Math.round(+c.kcal||0)} kcal</span>
+           <span class="chip ${c.src==='foto'?'c-w':'c-ok'}">${c.src==='foto'?'foto':'a mano'}</span>
+           <button type="button" onclick="cmBorrar('${c.uid}')" title="Quitar">×</button></div>`).join('')
+        : '<div class="cmvacio">Sin registrar</div>'}</div>
+      <div class="cmacc">
+        <button class="btn gh sm" id="cmFoto-${m}" onclick="cmFoto('${m}')">Foto</button>
+        <button class="btn gh sm" onclick="cmManual('${m}')">A mano</button>
+      </div>
+      <div class="cmman" id="cmMan-${m}">
+        <div><label>Kcal</label><input type="number" inputmode="numeric" id="cmK-${m}" placeholder="520"></div>
+        <div><label>Prot</label><input type="number" inputmode="decimal" step="0.1" id="cmP-${m}" placeholder="35"></div>
+        <div><label>Carb</label><input type="number" inputmode="decimal" step="0.1" id="cmC-${m}" placeholder="60"></div>
+        <div><label>Grasa</label><input type="number" inputmode="decimal" step="0.1" id="cmG-${m}" placeholder="15"></div>
+        <button class="btn sm" onclick="cmGuardarManual('${m}')">Añadir</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const todas = MEALS.flatMap(([m]) => cmDe(m, f)), t = cmSuma(todas);
+  const pct = t.kcal ? Math.round(100 * t.foto / t.kcal) : 0;
+  document.getElementById('cmTotal').innerHTML = !todas.length ? '' :
+    `<div class="scanres on">
+       <div class="scantot">
+         <div><span>Total del día</span><b>${Math.round(t.kcal)} kcal</b></div>
+         <div><span>Proteína</span><b>${(+t.prot).toFixed(1)} g</b></div>
+         <div><span>Carbos</span><b>${(+t.carb).toFixed(1)} g</b></div>
+         <div><span>Grasa</span><b>${(+t.fat).toFixed(1)} g</b></div>
+       </div>
+       <div class="scanacc"><button class="btn sm" onclick="cmSumarAlDia()">Sumar al registro del día</button></div>
+       <div class="note">${pct === 0 ? 'Todo capturado por ti.'
+          : pct === 100 ? 'Todo estimado por fotos.'
+          : `El ${pct} % de estas calorías salió de fotos.`}
+         El botón rellena el formulario de abajo; tú revisas y guardas.</div>
+     </div>`;
+}
+
+function cmFoto(meal){
+  SCAN_MEAL = meal;
+  document.getElementById('fotoIn').click();
+}
+
+function cmManual(meal){
+  document.getElementById('cmMan-' + meal).classList.toggle('on');
+}
+
+function cmGuardarManual(meal){
+  const v = id => { const x = parseFloat((document.getElementById(id)||{}).value); return isNaN(x) ? null : x; };
+  const k = v('cmK-' + meal);
+  if(k === null) return toast('Falta las kcal');
+  cmAgregar({meal, kcal:Math.round(k), prot:v('cmP-'+meal), carb:v('cmC-'+meal),
+             fat:v('cmG-'+meal), src:'manual'});
+  ['cmK-','cmP-','cmC-','cmG-'].forEach(p => document.getElementById(p+meal).value = '');
+  document.getElementById('cmMan-'+meal).classList.remove('on');
+}
+
+function cmAgregar(c){
+  D.comidas = D.comidas || [];
+  D.comidas.push({uid: uid(), date: cmDia(), meal: c.meal,
+                  kcal: c.kcal, prot: c.prot, carb: c.carb, fat: c.fat,
+                  src: c.src, scanId: c.scanId || null, nota: c.nota || null});
+  save(); renderComidas(); render();
+}
+
+function cmBorrar(u){
+  const i = (D.comidas||[]).findIndex(c => c.uid === u);
+  if(i < 0) return;
+  const c = D.comidas[i];
+  D.comidas.splice(i, 1); save(); renderComidas(); render();
+  if(SB && SESSION) SB.from('meal_entries').delete()
+    .eq('user_id', SESSION.user.id).eq('client_uid', c.uid).then(()=>{}, ()=>{});
+}
+
+/* Rellena el formulario del día. No guarda: eso lo decide la persona. */
+function cmSumarAlDia(){
+  const f = cmDia(), todas = MEALS.flatMap(([m]) => cmDe(m, f)), t = cmSuma(todas);
+  if(!todas.length) return toast('No hay comidas registradas ese día');
+  document.getElementById('nDate').value  = f;
+  document.getElementById('nKcal').value  = Math.round(t.kcal);
+  document.getElementById('nProtG').value = (+t.prot).toFixed(1);
+  document.getElementById('nCarb').value  = (+t.carb).toFixed(1);
+  document.getElementById('nFat').value   = (+t.fat).toFixed(1);
+  toast('Revisa el total y guarda');
+  const campo = document.getElementById('nKcal');
+  if(campo.scrollIntoView) campo.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
 function fotoOcupado(si, texto){
-  const b = document.getElementById('fotoBtn');
+  const b = document.getElementById('cmFoto-' + (SCAN_MEAL || 'desayuno'));
+  if(!b) return;
   b.disabled = si;
-  b.innerHTML = si ? '<span class="spin"></span>' + (texto || 'Analizando…') : 'Tomar foto';
+  b.innerHTML = si ? '<span class="spin"></span>' + (texto || 'Analizando…') : 'Foto';
 }
 
 async function analizarFoto(file){
@@ -1215,12 +1364,14 @@ function pintarEstimacion(r){
      </div>
      ${r.nota ? `<div class="note" style="margin-top:2px">${textoSeguro(r.nota)}</div>` : ''}
      <div class="scanacc">
-       <button class="btn sm" onclick="usarEstimacion()">Usar estos valores</button>
+       <button class="btn sm" onclick="usarEstimacion()">Añadir a ${textoSeguro(NOM_MEAL[SCAN_MEAL] || 'la comida')}</button>
        <button class="btn gh sm" onclick="descartarEstimacion()">Descartar</button>
      </div>
      <div class="note">Te quedan ${+r.restantes||0} fotos hoy · ${textoSeguro(r.modelo)}</div>`;
   caja.classList.add('on');
 }
+
+const NOM_MEAL = Object.fromEntries(MEALS);
 
 function borrarFoto(){
   const p = document.getElementById('fotoPrev');
@@ -1229,19 +1380,19 @@ function borrarFoto(){
   SCAN = null;
 }
 
+/* La estimación se suma como una comida más, no como el día entero. */
 function usarEstimacion(){
   if(!SCAN) return;
-  SCAN.usada = true;
-  const v = (id, x)=>{ document.getElementById(id).value = x; };
-  v('nKcal', SCAN.total.kcal);
-  v('nProtG', SCAN.total.proteina_g);
-  v('nCarb', SCAN.total.carbos_g);
-  v('nFat', SCAN.total.grasa_g);
-  document.getElementById('scanRes').classList.remove('on');
-  document.getElementById('fotoPrev').classList.remove('on');
-  toast('Revisa los números antes de guardar');
-  const campo = document.getElementById('nKcal');
-  if(campo.scrollIntoView) campo.scrollIntoView({behavior:'smooth', block:'center'});
+  const meal = SCAN_MEAL || 'comida';
+  const nombres = (SCAN.alimentos || []).map(a => a.nombre).filter(Boolean).slice(0, 3).join(', ');
+
+  cmAgregar({meal, kcal: SCAN.total.kcal, prot: SCAN.total.proteina_g,
+             carb: SCAN.total.carbos_g, fat: SCAN.total.grasa_g,
+             src: 'foto', scanId: SCAN.id, nota: nombres || null});
+
+  // El ciclo de la estimación se cierra aquí: se acepta con el valor que quedó.
+  cerrarCicloScan(SCAN.total.kcal, true);
+  toast('Añadido a ' + (NOM_MEAL[meal] || meal));
 }
 
 async function descartarEstimacion(){
@@ -1258,17 +1409,23 @@ function saveNutrition(){
   const kcal=g('nKcal');
   if(kcal===null) return toast("Captura al menos las kcal");
   const tg=g('nTarget');
-  // Si los números salieron de una foto, el registro no puede pasar por
-  // capturado a mano: la vista del estudio filtra por eso. Cuenta como
-  // estimación aunque la persona haya corregido las cifras, porque el
-  // punto de partida sigue siendo lo que dijo el modelo.
-  const deFoto = !!(SCAN && SCAN.usada);
+
+  // El origen del día se deduce de las comidas registradas ese día, no de una
+  // bandera suelta. Se guarda la proporción exacta: el análisis decide después
+  // dónde poner el umbral, en vez de heredar una decisión tomada aquí.
+  const delDia = (D.comidas||[]).filter(c => c.date === d);
+  const s = cmSuma(delDia);
+  const pct = s.kcal ? Math.round(1000 * s.foto / s.kcal) / 10 : null;
+  const src = pct == null ? 'manual' : pct === 0 ? 'manual' : pct >= 100 ? 'foto' : 'mixto';
+
   upsert(D.nutrition,{date:d,kcal:Math.round(kcal),prot:g('nProtG'),carb:g('nCarb'),fat:g('nFat'),
     target:tg==null?null:Math.round(tg),notes:document.getElementById('nNotes').value,
-    src: deFoto ? 'foto' : 'manual'});
-  save(); render(); toast(deFoto ? "Guardado como estimación" : "Comida guardada");
+    src, pctEst: pct});
+  save(); render();
+  toast(src === 'manual' ? "Comida guardada"
+       : src === 'foto'  ? "Guardado como estimación"
+       : `Guardado · ${pct} % estimado`);
   ['nKcal','nProtG','nCarb','nFat','nNotes'].forEach(i=>document.getElementById(i).value='');
-  cerrarCicloScan(Math.round(kcal), deFoto);
 }
 
 /* Guardar qué terminó capturando la persona es lo que permite medir
@@ -1932,6 +2089,7 @@ function bodyFat(cin,cue){
 function lastMeasure(){ return D.measures.length?D.measures[D.measures.length-1]:null; }
 
 function render(){
+  if(document.getElementById('cmLista')) renderComidas();
   const PL=PLANV(), NS=PL.length, w=Math.min(curWeek(),NS);
   const tgt=PL[w-1];
   document.getElementById('hdWeek').textContent=
@@ -2149,6 +2307,48 @@ function drawCharts(){
   const vb={}; D.workouts.forEach(w=>{const k=weekOf(w.date);
     vb[k]=(vb[k]||0)+w.sets.reduce((s,y)=>s+y.w*y.r,0)/1000;});
   line('chVol',[{pts:Object.keys(vb).map(k=>[+k,vb[k]]).sort((a,b)=>a[0]-b[0]),color:'#4ecfa8'}]);
+
+  dibujarNado();
+}
+
+/* El ritmo por 100 m en intervalos es el marcador de condición de quien nada:
+   si nadas la misma distancia más rápido con el mismo descanso, mejoraste,
+   aunque la báscula no se haya movido. */
+function dibujarNado(){
+  const tarjeta = document.getElementById('cardNado');
+  const ints = D.swims.filter(s => s.type === 'int' && paceToSec(s.pace))
+                      .map(s => ({sem: weekOf(s.date), seg: paceToSec(s.pace), date: s.date}))
+                      .sort((a,b) => a.date < b.date ? -1 : 1);
+
+  // Quien no nada no tiene por qué ver una tarjeta vacía
+  if(!D.cfg.nado && !D.swims.length){ tarjeta.style.display = 'none'; return; }
+  tarjeta.style.display = '';
+
+  if(!ints.length){
+    document.getElementById('chNado').innerHTML = '';
+    document.getElementById('nadoResumen').textContent =
+      'Todavía no hay series de intervalos con ritmo capturado. Registra una y aquí aparece la curva.';
+    return;
+  }
+
+  // Promedio por semana: dos sesiones la misma semana no deben dar dos puntos
+  const porSem = {};
+  ints.forEach(x => (porSem[x.sem] = porSem[x.sem] || []).push(x.seg));
+  const pts = Object.keys(porSem).map(k =>
+    [+k, porSem[k].reduce((a,b)=>a+b,0) / porSem[k].length]).sort((a,b)=>a[0]-b[0]);
+
+  line('chNado', [{pts, color:'#4ecfa8'}]);
+
+  const mmss = s => Math.floor(s/60) + ':' + String(Math.round(s%60)).padStart(2,'0');
+  const ini = ints[0].seg, act = ints[ints.length-1].seg, dif = act - ini;
+  const metros = D.swims.reduce((a,s) => a + (+s.m || 0), 0);
+  document.getElementById('nadoResumen').innerHTML = ints.length < 2
+    ? `Primera serie de intervalos a <b>${mmss(ini)}</b> por 100 m. Con dos ya se puede comparar.`
+    : `De <b>${mmss(ini)}</b> a <b>${mmss(act)}</b> por 100 m en ${ints.length} series · ` +
+      (dif < 0 ? `<b style="color:var(--acc)">${Math.abs(dif).toFixed(0)} s más rápido</b>`
+       : dif > 0 ? `<b style="color:var(--warn)">${dif.toFixed(0)} s más lento</b>`
+       : 'sin cambio') +
+      ` · ${(metros/1000).toFixed(1)} km nadados en total`;
 }
 
 /* ============ DATOS ============ */
@@ -2467,8 +2667,18 @@ async function pushLocalToCloud(){
       kcal_target:x.target==null?null:Math.round(x.target), notes:x.notes||null,
       // Lo estimado por foto sube marcado como tal. Mezclarlo con lo capturado
       // a mano inflaría los días de registro del estudio con datos adivinados.
-      source: x.src==='foto' ? 'photo_ai' : 'manual'}));
+      source: x.src==='foto' ? 'photo_ai' : x.src==='mixto' ? 'mixto' : 'manual',
+      pct_estimado: x.pctEst==null ? null : x.pctEst}));
     if(nuRows.length) await SB.from('nutrition_logs').upsert(nuRows,{onConflict:'user_id,logged_on'});
+
+    // Cada comida sube por separado, con su propio origen. Es lo que permite
+    // reconstruir después qué parte del día midió la persona y qué parte
+    // estimó el modelo.
+    const cmRows=(D.comidas||[]).filter(x=>x.date && x.meal).map(x=>({
+      user_id:u, client_uid:x.uid, logged_on:x.date, meal:x.meal,
+      kcal:x.kcal==null?null:Math.round(x.kcal), protein_g:x.prot, carbs_g:x.carb, fat_g:x.fat,
+      source:x.src==='foto'?'photo_ai':'manual', scan_id:x.scanId||null, notes:x.nota||null}));
+    if(cmRows.length) await SB.from('meal_entries').upsert(cmRows,{onConflict:'user_id,client_uid'});
 
     for(const s of D.swims){
       if(!s.date) continue;
@@ -2532,11 +2742,12 @@ async function pullFromCloud(){
   // sobre todos los participantes: sin este filtro, su app se descargaba
   // los datos de todo el mundo y luego los volvía a subir como propios.
   const u = SESSION.user.id;
-  const [bw,bm,sl,nu,sw,wo] = await Promise.all([
+  const [bw,bm,sl,nu,cm,sw,wo] = await Promise.all([
     SB.from('body_weights').select('*').eq('user_id',u).order('measured_on'),
     SB.from('body_measures').select('*').eq('user_id',u).order('measured_on'),
     SB.from('sleep_logs').select('*').eq('user_id',u).order('logged_on'),
     SB.from('nutrition_logs').select('*').eq('user_id',u).order('logged_on'),
+    SB.from('meal_entries').select('*').eq('user_id',u).order('logged_on'),
     SB.from('swims').select('*').eq('user_id',u).order('performed_on'),
     SB.from('workouts').select('*,workout_sets(*)').eq('user_id',u).order('performed_on')
   ]);
@@ -2548,7 +2759,12 @@ async function pullFromCloud(){
   D.sleep    = (sl.data||[]).map(x=>({date:x.logged_on,h:num(x.hours)}));
   D.nutrition= (nu.data||[]).map(x=>({date:x.logged_on,kcal:x.kcal,prot:num(x.protein_g),
                  carb:num(x.carbs_g),fat:num(x.fat_g),target:x.kcal_target,notes:x.notes||'',
-                 src: x.source==='photo_ai' ? 'foto' : x.source}));
+                 src: x.source==='photo_ai' ? 'foto' : x.source,
+                 pctEst: x.pct_estimado==null ? null : +x.pct_estimado}));
+  D.comidas  = (cm.data||[]).map(x=>({uid:x.client_uid, date:x.logged_on, meal:x.meal,
+                 kcal:x.kcal, prot:num(x.protein_g), carb:num(x.carbs_g), fat:num(x.fat_g),
+                 src: x.source==='photo_ai' ? 'foto' : 'manual',
+                 scanId:x.scan_id||null, nota:x.notes||null}));
   D.swims    = (sw.data||[]).map(x=>({uid:x.client_uid,date:x.performed_on,
                  type:SWIM_FROM_DB[x.kind]||'cont', m:x.meters||0, min:num(x.minutes)||0,
                  pace:secToPace(x.pace_sec_100m), notes:x.notes||''}));
@@ -2855,7 +3071,7 @@ function quizaAlta(){
 
 /* ============ INIT ============ */
 function init(){
-  ['qDate','wDate','pDate','mDate','sDate','nDate'].forEach(i=>document.getElementById(i).value=today());
+  ['qDate','wDate','pDate','mDate','sDate','nDate','cmDate'].forEach(i=>document.getElementById(i).value=today());
 
   // Solo las rutinas del programa que le corresponde por días de entrenamiento
   const sel=document.getElementById('wRoutine'), previa=sel.value, rut=misRutinas();
@@ -2889,9 +3105,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.1.0 · carga sugerida por el modelo';
+const APP_VER = 'v2.2.0 · comidas por tiempo y ritmo de natación';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '007';
+const SW_CACHE_LOCAL = '008';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
