@@ -361,7 +361,16 @@ button.btn.sm{min-height:34px}
       <label class="opt" data-d="3"><b>3 días</b><span>Cuerpo completo. Cada sesión toca todo el cuerpo.</span></label>
       <label class="opt sel" data-d="4"><b>4 días</b><span>Torso y pierna alternados.</span></label>
       <label class="opt" data-d="5"><b>5 días</b><span>Rutina dividida, más volumen por grupo muscular.</span></label>
+      <label class="opt" data-d="6"><b>6 días</b><span>Cinco de pesas y el sábado un circuito corporal de 30 min.</span></label>
     </div>
+    <div class="row"><div><label>¿Qué quieres priorizar?</label><select id="obEnfasis">
+      <option value="equilibrado">Equilibrado — mismo volumen arriba y abajo</option>
+      <option value="superior">Más tren superior — pecho, espalda y brazo</option>
+      <option value="inferior">Más tren inferior — glúteo, pierna y cadena posterior</option>
+    </select></div></div>
+    <p class="lead" style="margin-top:-4px;font-size:12.5px">Esto no depende de tu sexo: depende de
+      lo que quieras entrenar. La opción marcada es solo una sugerencia y la puedes cambiar cuando
+      quieras desde Datos.</p>
     <div class="row"><div><label>¿Cuánto llevas entrenando con pesas?</label><select id="obExp">
       <option value="0">Estoy empezando</option>
       <option value="6">Menos de un año</option>
@@ -594,6 +603,22 @@ button.btn.sm{min-height:34px}
     <div class="kpi"><div class="l">Balance vs. objetivo</div><div class="v" id="nBal">—</div><div class="d">Promedio 7 días</div></div>
     <div class="kpi"><div class="l">Proteína por kg</div><div class="v" id="nProt">—</div><div class="d" id="nProtD">Mínimo: 1.8 g/kg</div></div>
     <div class="kpi"><div class="l">Días registrados</div><div class="v" id="nDays">—</div><div class="d">De los últimos 7</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Tu plan de alimentación</h2>
+    <p class="sub">Repartido en equivalentes del Sistema Mexicano de Alimentos Equivalentes,
+      que es el método que usan los nutriólogos aquí. Cada equivalente tiene un aporte
+      definido, así que las cuentas cuadran solas y no hay cifras inventadas.</p>
+    <div id="planCom"></div>
+    <div class="scanacc" style="padding:0">
+      <button class="btn gh sm" id="menuBtn" onclick="pedirMenu()">Sugerir platillos con IA</button>
+    </div>
+    <div id="menuRes"></div>
+    <div class="note">Las cantidades salen del SMAE (Pérez Lizaur y cols., 4ª ed.) y de la Guía de
+      Alimentos para la Población Mexicana de la Secretaría de Salud. Un plan de alimentación real
+      lo hace un nutriólogo: esto es una referencia calculada con tus calorías y tu proteína
+      objetivo, no una prescripción.</div>
   </div>
 
   <div class="card">
@@ -836,24 +861,61 @@ const ROUTINES = {
     ["Prensa","3 × 12"],["Curl de bíceps con barra","3 × 10"]]},
   fullC:{name:"Cuerpo completo C", ex:[
     ["Sentadilla goblet","3 × 12"],["Fondos en paralelas","3 × 10"],["Dominadas","3 × máx"],
-    ["Hiperextensión baja","3 × 15"],["Extensión de tríceps en polea","3 × 12"]]}
+    ["Hiperextensión baja","3 × 15"],["Extensión de tríceps en polea","3 × 12"]]},
+  lowerC:{name:"Lower C — Glúteo y cadena posterior", ex:[
+    ["Empuje de cadera","4 × 10"],["Peso muerto rumano","4 × 10"],["Búlgaras","3 × 12"],
+    ["Patada de glúteo en polea","3 × 15"],["Abductor","3 × 15"],["Pantorrilla","4 × 15"]]},
+  acond:{name:"Sábado — Acondicionamiento", ex:[
+    ["Burpees","4 × 15"],["Swing ruso","4 × 20"],["Sentadilla con salto","4 × 15"],
+    ["Escaladores","4 × 30"],["Desplantes","3 × 15"]]}
 };
+
+/* El circuito del sábado se registra como cualquier sesión, pero no es
+   trabajo de fuerza: no tiene carga progresiva ni ventana de RIR. Ni se
+   califica ni entra al modelo. La base lo filtra en v_working_sets; aquí
+   se filtra igual para que las dos mitades cuenten lo mismo. */
+const ACONDICIONAMIENTO = new Set(['acond']);
+function esAcond(slug){ return ACONDICIONAMIENTO.has(slug); }
 
 /* Qué rutinas ve cada quien según los días que puede entrenar.
    El modelo es personalizado, así que no hace falta que todos entrenen igual;
    lo que sí hace falta es que sostengan el registro ocho semanas. */
+/* Por días y por énfasis. El énfasis NO se deduce del sexo: se pregunta.
+   Lo único que cambia entre columnas es qué ocupa los últimos huecos de la
+   semana, que es donde de verdad se decide a qué se le da más volumen. */
 const PROGRAMAS = {
-  3: ['fullA','fullB','fullC'],
-  4: ['upperA','lowerA','upperB','lowerB'],
-  5: ['upperA','lowerA','upperB','lowerB','upperC']
+  3: { equilibrado:['fullA','fullB','fullC'],
+       superior:   ['fullA','fullB','fullC'],
+       inferior:   ['fullA','fullB','lowerB'] },
+  4: { equilibrado:['upperA','lowerA','upperB','lowerB'],
+       superior:   ['upperA','lowerA','upperB','upperC'],
+       inferior:   ['upperA','lowerA','upperB','lowerC'] },
+  5: { equilibrado:['upperA','lowerA','upperB','lowerB','upperC'],
+       superior:   ['upperA','lowerA','upperB','upperC','lowerB'],
+       inferior:   ['upperA','lowerA','upperB','lowerB','lowerC'] },
+  6: { equilibrado:['upperA','lowerA','upperB','lowerB','upperC','acond'],
+       superior:   ['upperA','lowerA','upperB','upperC','lowerB','acond'],
+       inferior:   ['upperA','lowerA','upperB','lowerB','lowerC','acond'] }
 };
 const CALENDARIO = {
   3: ['Lunes','Miércoles','Viernes'],
   4: ['Lunes','Martes','Jueves','Viernes'],
-  5: ['Lunes','Martes','Miércoles','Jueves','Viernes']
+  5: ['Lunes','Martes','Miércoles','Jueves','Viernes'],
+  6: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 };
+const ENFASIS_TXT = { equilibrado:'Equilibrado', superior:'Más tren superior', inferior:'Más tren inferior' };
+
+/* Qué opción llega marcada de entrada. Es solo el valor inicial: se cambia
+   en un toque, y lo que se guarda es lo que la persona eligió. */
+function enfasisSugerido(sexo){ return sexo === 'F' ? 'inferior' : 'equilibrado'; }
+function enfasisDe(c){ return (c && c.enfasis) || 'equilibrado'; }
+
+function programaDe(c){
+  const d = Math.min(6, Math.max(3, +((c||{}).dias) || 4));
+  return (PROGRAMAS[d] || PROGRAMAS[4])[enfasisDe(c)] || PROGRAMAS[d].equilibrado;
+}
 /* Las del programa que le tocó, más las que haya armado él mismo */
-const misRutinas = () => (PROGRAMAS[D.cfg.dias] || PROGRAMAS[5])
+const misRutinas = () => programaDe(D.cfg)
   .concat(Object.keys(ROUTINES).filter(k=>k.startsWith('propia')));
 /* El historial puede referirse a una rutina propia que ya se borró */
 const nombreRutina = k => (ROUTINES[k] && ROUTINES[k].name) || 'Rutina eliminada';
@@ -979,7 +1041,7 @@ const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],comidas:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, plan:null, alta:false, nado:false, propias:[],
+       cin0:96.5, dias:5, expMeses:18, enfasis:'equilibrado', plan:null, alta:false, nado:false, propias:[],
        owner:null}});   // de qué cuenta son estos datos
 
 let D = load();
@@ -1196,6 +1258,164 @@ function reducirImagen(file, lado){
    El día guarda la proporción exacta, no una etiqueta, para que el
    análisis pueda elegir después dónde poner el umbral.
    ==================================================================== */
+/* ====================================================================
+   PLAN DE ALIMENTACIÓN POR EQUIVALENTES
+
+   El Sistema Mexicano de Alimentos Equivalentes agrupa los alimentos por
+   aporte nutrimental: todos los del mismo subgrupo son intercambiables.
+   Un equivalente de cereal sin grasa son 70 kcal con 15 g de hidratos y
+   2 g de proteína, sea una tortilla o medio bolillo.
+
+   Trabajar en equivalentes en vez de en gramos tiene dos ventajas para
+   este proyecto: las cifras son definiciones, no estimaciones —así que no
+   hay que defender de dónde salió cada número— y la persona puede
+   intercambiar alimentos sin recalcular nada.
+
+   Fuente: Pérez Lizaur AB y cols., SMAE 4ª ed. (2014); Guía de Alimentos
+   para la Población Mexicana, Secretaría de Salud (2010).
+   ==================================================================== */
+const EQUIV = {
+  verdura:   {n:'Verduras',              kcal:25,  p:2, g:0, h:4,  ej:'2 tazas de lechuga · 1 jitomate · ½ taza de brócoli cocido'},
+  fruta:     {n:'Frutas',                kcal:60,  p:0, g:0, h:15, ej:'1 manzana · ½ plátano · 1 taza de papaya · 15 uvas'},
+  cereal:    {n:'Cereales y tubérculos', kcal:70,  p:2, g:0, h:15, ej:'1 tortilla · ½ bolillo · ½ taza de arroz cocido · ⅓ taza de avena'},
+  leguminosa:{n:'Leguminosas',           kcal:120, p:8, g:1, h:20, ej:'½ taza de frijol, lenteja o garbanzo cocido'},
+  aoa:       {n:'Origen animal magro',   kcal:40,  p:7, g:1, h:0,  ej:'30 g de pechuga · 40 g de atún en agua · 2 claras · 30 g de res'},
+  leche:     {n:'Leche descremada',      kcal:95,  p:9, g:2, h:12, ej:'1 taza de leche descremada · ¾ taza de yogur light'},
+  grasa:     {n:'Aceites y grasas',      kcal:45,  p:0, g:5, h:0,  ej:'1 cdita de aceite · ⅓ de aguacate · 10 almendras · 3 nueces'},
+};
+const ORDEN_EQ = ['aoa','cereal','verdura','fruta','leguminosa','leche','grasa'];
+
+/* Cuántos equivalentes de cada grupo cubren las calorías y la proteína del
+   día. Se resuelve en orden de prioridad: primero lo que no se negocia
+   —proteína y verduras—, después los hidratos, y la grasa al final para
+   cerrar el hueco calórico que quede. */
+function planEquivalentes(kcalObjetivo, protObjetivo){
+  const kcal = Math.max(1000, +kcalObjetivo || 2000);
+  const prot = Math.max(40, +protObjetivo || 120);
+
+  const eq = { verdura:0, fruta:0, cereal:0, leguminosa:0, aoa:0, leche:0, grasa:0 };
+  const suma = () => ORDEN_EQ.reduce((a,k)=>({
+    kcal:a.kcal + eq[k]*EQUIV[k].kcal, p:a.p + eq[k]*EQUIV[k].p,
+    g:a.g + eq[k]*EQUIV[k].g, h:a.h + eq[k]*EQUIV[k].h}), {kcal:0,p:0,g:0,h:0});
+
+  // Base fija: cinco raciones de verdura y fruta al día es la recomendación
+  // de salud pública, y son baratas en calorías.
+  eq.verdura = 3;
+  eq.fruta   = kcal < 1600 ? 2 : 3;
+  eq.leche   = 1;
+  eq.leguminosa = 1;
+
+  // La proteína manda: se completa con alimentos de origen animal magros
+  eq.aoa = Math.max(2, Math.round((prot - suma().p) / EQUIV.aoa.p));
+
+  // Los hidratos que faltan, con cereales
+  const hcMeta = kcal * 0.45 / 4;
+  eq.cereal = Math.max(2, Math.round((hcMeta - suma().h) / EQUIV.cereal.h));
+
+  // La grasa cierra el hueco calórico, con un piso saludable
+  eq.grasa = Math.max(3, Math.round((kcal - suma().kcal) / EQUIV.grasa.kcal));
+
+  // Si aun así sobran o faltan calorías, se ajusta con cereales, que es el
+  // grupo más flexible. Nunca por debajo de 2.
+  let t = suma();
+  while(t.kcal > kcal + 60 && eq.cereal > 2){ eq.cereal--; t = suma(); }
+  while(t.kcal < kcal - 60){ eq.cereal++; t = suma(); if(eq.cereal > 20) break; }
+
+  return {eq, total: suma(), objetivo: {kcal, prot}};
+}
+
+/* Cómo se reparten los equivalentes entre desayuno, comida y cena.
+   Proporciones de uso común: 30 / 40 / 30. */
+const REPARTO = { desayuno:0.30, comida:0.40, cena:0.30 };
+
+function repartirEquivalentes(eq){
+  const out = { desayuno:{}, comida:{}, cena:{} };
+  for(const k of ORDEN_EQ){
+    let quedan = eq[k];
+    const tiempos = Object.keys(REPARTO);
+    // Se reparte al entero más cercano y el sobrante va a la comida fuerte
+    tiempos.forEach(t=>{ out[t][k] = Math.floor(eq[k] * REPARTO[t]); quedan -= out[t][k]; });
+    let i = 0;
+    while(quedan > 0){ out[['comida','desayuno','cena'][i % 3]][k]++; quedan--; i++; }
+  }
+  return out;
+}
+
+function renderPlanComida(){
+  const caja = document.getElementById('planCom');
+  if(!caja) return;
+  const PL = PLANV(), w = Math.min(curWeek(), PL.length);
+  const kcal = PL[w-1][2], prot = protMeta();
+  const {eq, total} = planEquivalentes(kcal, prot);
+  const rep = repartirEquivalentes(eq);
+  PLAN_EQ = {eq, rep, total, kcal, prot};
+
+  const fila = k => `<tr>
+      <td>${EQUIV[k].n}<div class="p">${EQUIV[k].ej}</div></td>
+      <td class="k">${rep.desayuno[k] || '—'}</td>
+      <td class="k">${rep.comida[k]   || '—'}</td>
+      <td class="k">${rep.cena[k]     || '—'}</td>
+      <td class="k"><b>${eq[k]}</b></td></tr>`;
+
+  caja.innerHTML = `<div class="scanres on">
+      <table>
+        <tr><td class="p">Grupo</td><td class="k p">Des.</td><td class="k p">Com.</td>
+            <td class="k p">Cena</td><td class="k p">Día</td></tr>
+        ${ORDEN_EQ.filter(k=>eq[k]>0).map(fila).join('')}
+      </table>
+      <div class="scantot">
+        <div><span>Suma del plan</span><b>${Math.round(total.kcal)} kcal</b></div>
+        <div><span>Proteína</span><b>${Math.round(total.p)} g</b></div>
+        <div><span>Carbohidratos</span><b>${Math.round(total.h)} g</b></div>
+        <div><span>Grasa</span><b>${Math.round(total.g)} g</b></div>
+      </div>
+      <div class="note">Tu objetivo de esta semana es <b>${kcal.toLocaleString('es-MX')} kcal</b>
+        y <b>${prot} g</b> de proteína. El reparto cuadra con una diferencia de
+        ${Math.abs(Math.round(total.kcal - kcal))} kcal.</div>
+    </div>`;
+}
+let PLAN_EQ = null;
+
+/* La estructura del día ya está resuelta por los equivalentes. Al modelo
+   solo se le pide QUÉ COMER para cumplirla, nunca cuánto: así las cifras
+   siguen siendo del SMAE y el modelo aporta variedad, no números. */
+async function pedirMenu(){
+  if(!SB || !SESSION) return toast('Necesitas iniciar sesión para esto');
+  if(!PLAN_EQ) return toast('Primero hay que calcular tu plan');
+  const b = document.getElementById('menuBtn');
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>Pensando…';
+  try{
+    const { data, error } = await SB.functions.invoke('sugerir-menu',
+      { body: { reparto: PLAN_EQ.rep } });
+    let cuerpo = data;
+    if(error && error.context && typeof error.context.json === 'function'){
+      try { cuerpo = await error.context.json(); } catch(e){}
+    }
+    if(cuerpo && cuerpo.error) return toast(cuerpo.error);
+    if(error || !cuerpo) return toast('No se pudo armar el menú');
+    pintarMenu(cuerpo);
+  }catch(e){ toast('No se pudo armar el menú'); }
+  finally{ b.disabled = false; b.textContent = 'Sugerir platillos con IA'; }
+}
+
+function pintarMenu(m){
+  const NOM = { desayuno:'Desayuno', comida:'Comida', cena:'Cena' };
+  document.getElementById('menuRes').innerHTML = `<div class="scanres on">
+    ${(m.tiempos||[]).map(t=>`
+      <div style="margin-bottom:11px">
+        <div class="p" style="text-transform:uppercase;letter-spacing:.6px">${textoSeguro(NOM[t.tiempo]||t.tiempo)}</div>
+        <b style="font-size:13.5px">${textoSeguro(t.platillo)}</b>
+        <ul style="margin:5px 0 4px;padding-left:17px;font-size:12.5px;color:var(--dim);line-height:1.6">
+          ${(t.ingredientes||[]).map(i=>`<li>${textoSeguro(i)}</li>`).join('')}
+        </ul>
+      </div>`).join('')}
+    ${m.nota ? `<div class="note" style="margin-top:2px">${textoSeguro(m.nota)}</div>` : ''}
+    <div class="note">Los platillos los propuso <b>${textoSeguro(m.modelo)}</b>; las cantidades
+      salen del sistema de equivalentes, no del modelo. Si algo no te gusta, cámbialo por otro
+      alimento del mismo grupo: por eso se llaman equivalentes.</div>
+  </div>`;
+}
+
 const MEALS = [['desayuno','Desayuno'], ['comida','Comida'], ['cena','Cena']];
 let SCAN_MEAL = null;      // a qué comida se le va a sumar la foto que se está analizando
 
@@ -1614,7 +1834,11 @@ function calificar(w, previa){
 
 /* Calificación de cada sesión, en orden cronológico */
 function calificaciones(){
-  const ws = D.workouts.slice().sort((a,b)=>a.date<b.date?-1:1);
+  // El circuito del sábado queda fuera: no tiene ventana de RIR ni carga que
+  // progrese, así que calificarlo con esta fórmula daría un número sin
+  // sentido y arrastraría el promedio. La base lo excluye igual.
+  const ws = D.workouts.filter(w => !esAcond(w.routine))
+                       .sort((a,b)=>a.date<b.date?-1:1);
   return ws.map((w,i)=>({w, c: calificar(w, i ? ws[i-1] : null)}));
 }
 const JUICIO = t => t>=85 ? ['Excelente','c-ok'] : t>=70 ? ['Buena','c-ok']
@@ -1806,7 +2030,7 @@ function rpAnalizar(){
   }));
 
   // Referencia del catálogo: series por sesión del programa que le tocaría
-  const refSlug = (PROGRAMAS[dias] || PROGRAMAS[5]);
+  const refSlug = programaDe({dias, enfasis: enfasisDe(D.cfg)}).filter(k => !esAcond(k));
   const refSeries = Math.round(refSlug.reduce((a,k)=>
     a + (ROUTINES[k] ? ROUTINES[k].ex.reduce((b,e)=>b + (parseInt(e[1])||3), 0) : 0), 0) / refSlug.length);
 
@@ -2089,7 +2313,7 @@ function bodyFat(cin,cue){
 function lastMeasure(){ return D.measures.length?D.measures[D.measures.length-1]:null; }
 
 function render(){
-  if(document.getElementById('cmLista')) renderComidas();
+  if(document.getElementById('cmLista')) { renderPlanComida(); renderComidas(); }
   const PL=PLANV(), NS=PL.length, w=Math.min(curWeek(),NS);
   const tgt=PL[w-1];
   document.getElementById('hdWeek').textContent=
@@ -2839,6 +3063,10 @@ function obIr(n){
   document.querySelectorAll('.obstep').forEach(s=>s.classList.remove('on'));
   obEl('ob'+n).classList.add('on');
   document.querySelectorAll('.obbar i').forEach((b,i)=>b.classList.toggle('on', i<=n));
+  // El énfasis llega sugerido según el sexo, pero solo la primera vez que se
+  // ve la pantalla: si la persona ya eligió, no se le cambia por detrás.
+  if(n===4 && !obEl('obEnfasis').dataset.tocado)
+    obEl('obEnfasis').value = enfasisSugerido(obEl('obSexo').value);
   if(n===5) obResumen();
   obEl('onboard').scrollTop = 0;
 }
@@ -2891,13 +3119,14 @@ function obCfg(){
     wGoal:  g==='maintenance' ? pes : parseFloat(obEl('obMeta').value),
     dias:   obDiasSel(),
     expMeses: +obEl('obExp').value,
+    enfasis: (obEl('obEnfasis') || {}).value || enfasisSugerido(obEl('obSexo').value),
     start:  today()
   };
 }
 
 function obResumen(){
   const c=obCfg(), plan=generarPlan(c), fin=plan[plan.length-1];
-  const rut=PROGRAMAS[c.dias].map(k=>ROUTINES[k].name).join(' · ');
+  const rut=programaDe(c).map(k=>ROUTINES[k].name).join(' · ');
   const filas=[
     ['Objetivo', GOAL_TXT[c.goal]],
     ['Duración', plan.length+' semanas'],
@@ -2905,6 +3134,7 @@ function obResumen(){
     ['Calorías al inicio', plan[0][2].toLocaleString('es-MX')+' kcal'],
     ['Proteína al día', Math.round(c.w0*1.9)+' g'],
     ['Entrenamiento', c.dias+' días por semana'],
+    ['Énfasis', ENFASIS_TXT[enfasisDe(c)]],
     ['Rutinas', rut]
   ];
   obEl('obResumen').innerHTML=filas.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
@@ -2996,6 +3226,7 @@ async function guardarPerfil(){
   set('target_weight_kg', c.wGoal);
   set('goal', c.goal);
   set('training_days_per_week', c.dias);
+  set('training_emphasis', c.enfasis || 'equilibrado');
   if(n){
     set('plan_weeks', n);
     set('target_waist_cm', c.plan[n-1][1]);
@@ -3097,6 +3328,7 @@ function init(){
 
 obOpciones('obGoals');
 obOpciones('obDias');
+document.getElementById('obEnfasis').addEventListener('change', function(){ this.dataset.tocado = '1'; });
 rpSincronizar();
 init();
 quizaAlta();
@@ -3105,9 +3337,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.2.0 · comidas por tiempo y ritmo de natación';
+const APP_VER = 'v2.3.0 · énfasis, 6 días y plan de alimentación';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '008';
+const SW_CACHE_LOCAL = '009';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
