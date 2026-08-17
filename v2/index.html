@@ -818,6 +818,30 @@ button.btn.sm{min-height:34px}
   </div>
 
   <div class="card">
+    <h2>Tu programa de entrenamiento</h2>
+    <p class="sub">Cambia cuántos días entrenas y qué quieres priorizar. Las rutinas se reasignan
+      al momento y tu historial no se toca.</p>
+    <div class="row r2">
+      <div><label>Días por semana</label><select id="cfgDias" onchange="guardarPrograma()">
+        <option value="3">3 días — cuerpo completo</option>
+        <option value="4">4 días — torso y pierna</option>
+        <option value="5">5 días — rutina dividida</option>
+        <option value="6">6 días — cinco de pesas y el sábado circuito</option>
+      </select></div>
+      <div><label>Qué priorizar</label><select id="cfgEnfasis" onchange="guardarPrograma()">
+        <option value="equilibrado">Equilibrado</option>
+        <option value="superior">Más tren superior</option>
+        <option value="inferior">Más tren inferior</option>
+      </select></div>
+    </div>
+    <div class="note" id="cfgProgTxt"></div>
+    <div class="note">Con 6 días, el sábado es un circuito corporal de unos 30 minutos. Se registra
+      como cualquier sesión para que quede constancia de que entrenaste, pero <b>no se califica ni
+      entra al modelo</b>: un circuito por tiempo no tiene carga que progrese ni ventana de RIR, y
+      puntuarlo con la fórmula de las pesas daría un número sin sentido.</div>
+  </div>
+
+  <div class="card">
     <h2>Versión</h2>
     <p class="sub">La app se guarda en tu teléfono para funcionar sin internet. Si acabo de publicar
       un cambio y no lo ves, fuerza la actualización desde aquí.</p>
@@ -2605,6 +2629,31 @@ function saveCfg(){
   } else toast('Configuración guardada');
   save(); init();
 }
+/* Cambiar días o énfasis reasigna las rutinas, nada más. El historial no se
+   toca: las sesiones ya registradas siguen apuntando a la rutina con la que
+   se hicieron, aunque esa rutina ya no esté en el programa actual. */
+function guardarPrograma(){
+  const dias = +document.getElementById('cfgDias').value || D.cfg.dias;
+  const enf  = document.getElementById('cfgEnfasis').value || 'equilibrado';
+  const cambio = dias !== D.cfg.dias || enf !== enfasisDe(D.cfg);
+  D.cfg.dias = dias;
+  D.cfg.enfasis = enf;
+  save();
+  if(SB && SESSION) guardarPerfil();
+  init();
+  if(cambio) toast('Programa actualizado');
+}
+
+function pintarPrograma(){
+  const sel = document.getElementById('cfgDias'), selE = document.getElementById('cfgEnfasis');
+  if(!sel) return;
+  sel.value  = String(Math.min(6, Math.max(3, +D.cfg.dias || 4)));
+  selE.value = enfasisDe(D.cfg);
+  const prog = programaDe(D.cfg), cal = CALENDARIO[+sel.value] || [];
+  document.getElementById('cfgProgTxt').innerHTML = prog.map((k,i)=>
+    `<b>${cal[i] || ''}</b> · ${textoSeguro(nombreRutina(k))}`).join('<br>');
+}
+
 function wipe(){
   if(!confirm('¿Borrar TODOS los registros de ESTE dispositivo?\n\nSi tienes sesión iniciada, la copia en la nube NO se borra: al sincronizar volverán. Para borrarlos de verdad, cierra sesión antes.')) return;
   localStorage.removeItem(KEY); D=load(); init(); toast('Borrado de este dispositivo');
@@ -3313,6 +3362,7 @@ function init(){
   document.getElementById('cfgH').value=D.cfg.height;
   document.getElementById('cfgW0').value=D.cfg.w0;
   document.getElementById('cfgConsent').checked=!!D.cfg.consent;
+  pintarPrograma();
 
   // Prellena el objetivo calórico de la semana según el plan vigente
   const PL=PLANV(), sem=Math.min(curWeek(), PL.length);
@@ -3337,9 +3387,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.3.0 · énfasis, 6 días y plan de alimentación';
+const APP_VER = 'v2.3.1 · programa editable desde Datos';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '009';
+const SW_CACHE_LOCAL = '010';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
