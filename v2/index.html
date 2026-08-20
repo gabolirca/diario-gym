@@ -942,7 +942,8 @@ function programaDe(c){
 const misRutinas = () => programaDe(D.cfg)
   .concat(Object.keys(ROUTINES).filter(k=>k.startsWith('propia')));
 /* El historial puede referirse a una rutina propia que ya se borró */
-const nombreRutina = k => (ROUTINES[k] && ROUTINES[k].name) || 'Rutina eliminada';
+const nombreRutina = k => (ROUTINES[k] && ROUTINES[k].name)
+  || (k === 'desconocida' ? 'Rutina sin identificar' : 'Rutina eliminada');
 
 const GOAL_TXT = {fat_loss:'Pérdida de grasa', recomp:'Recomposición',
                   muscle_gain:'Ganancia muscular', maintenance:'Mantenimiento'};
@@ -2829,6 +2830,14 @@ async function doSignOut(){
   toast('Sesión cerrada · los datos siguen en este dispositivo');
 }
 
+/* El catálogo traduce entre los slugs de la app y los identificadores de la
+   base. Si se carga a medias, la traducción falla en silencio y el historial
+   se reescribe mal. Por eso aquí NO se acepta una respuesta vacía: es mejor
+   no sincronizar que sincronizar con un diccionario incompleto.
+
+   Esto no es hipotético: una carga fallida del catálogo convirtió todas las
+   sesiones en «Upper A», y como después se vuelven a subir, la pérdida era
+   permanente. */
 async function loadCatalog(){
   const [ex,rt] = await Promise.all([
     SB.from('exercises').select('id,slug').is('owner_id',null),
@@ -2837,9 +2846,14 @@ async function loadCatalog(){
     // con una rutina propia.
     SB.from('routines').select('id,slug')
   ]);
-  CATALOG={ex:{},rt:{},exById:{},rtById:{}};
-  (ex.data||[]).forEach(x=>{CATALOG.ex[x.slug]=x.id; CATALOG.exById[x.id]=x.slug;});
-  (rt.data||[]).forEach(x=>{CATALOG.rt[x.slug]=x.id; CATALOG.rtById[x.id]=x.slug;});
+  if(ex.error || rt.error) throw (ex.error || rt.error);
+  if(!(ex.data||[]).length || !(rt.data||[]).length)
+    throw new Error('El catálogo llegó vacío: no se puede traducir el historial.');
+
+  const c = {ex:{},rt:{},exById:{},rtById:{}};
+  ex.data.forEach(x=>{c.ex[x.slug]=x.id; c.exById[x.id]=x.slug;});
+  rt.data.forEach(x=>{c.rt[x.slug]=x.id; c.rtById[x.id]=x.slug;});
+  CATALOG = c;                    // se publica entero o no se publica
 }
 
 async function loadProfile(){
@@ -2965,11 +2979,19 @@ async function pushLocalToCloud(){
 
     for(const w of D.workouts){
       if(!w.uid) w.uid=uid();
-      const {data:wr,error:we} = await SB.from('workouts').upsert({
+      // Si la rutina local no se puede traducir, se omite la columna en vez de
+      // mandar null: así el upsert conserva lo que el servidor ya tenía en
+      // lugar de borrarlo.
+      const fila = {
         user_id:u, client_uid:w.uid, performed_on:w.date,
-        routine_id: CATALOG.rt[w.routine] || propias[w.routine] || null,
         session_rpe:w.rpe??null, duration_min:w.dur??null, notes:w.notes||null
-      },{onConflict:'user_id,client_uid'}).select('id').single();
+      };
+      const rid = CATALOG.rt[w.routine] || propias[w.routine] || null;
+      if(rid) fila.routine_id = rid;
+      else console.warn('Rutina sin traducir, se respeta la del servidor:', w.routine, w.date);
+
+      const {data:wr,error:we} = await SB.from('workouts').upsert(fila,
+        {onConflict:'user_id,client_uid'}).select('id').single();
       if(we) throw we;
       // Se arman las filas ANTES de borrar nada. Si no hay nada que subir,
       // no se toca el servidor: borrar y no poder reinsertar fue lo que
@@ -3041,8 +3063,15 @@ async function pullFromCloud(){
   D.swims    = (sw.data||[]).map(x=>({uid:x.client_uid,date:x.performed_on,
                  type:SWIM_FROM_DB[x.kind]||'cont', m:x.meters||0, min:num(x.minutes)||0,
                  pace:secToPace(x.pace_sec_100m), notes:x.notes||''}));
+  // Si un identificador de rutina no se puede traducir, se conserva lo que ya
+  // había en local para esa misma sesión. Poner un valor por omisión aquí
+  // equivale a inventarse el historial de alguien.
+  const rutinaPrevia = {};
+  D.workouts.forEach(x=>{ if(x.uid) rutinaPrevia[x.uid] = x.routine; });
+
   D.workouts = (wo.data||[]).map(x=>({
-    uid:x.client_uid, date:x.performed_on, routine:CATALOG.rtById[x.routine_id]||'upperA',
+    uid:x.client_uid, date:x.performed_on,
+    routine: CATALOG.rtById[x.routine_id] || rutinaPrevia[x.client_uid] || 'desconocida',
     rpe:num(x.session_rpe), dur:x.duration_min, notes:x.notes||'',
     sets:(x.workout_sets||[])
       .sort((a,b)=>a.set_index-b.set_index)
@@ -3387,9 +3416,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.3.1 · programa editable desde Datos';
+const APP_VER = 'v2.3.2 · arreglo: el historial ya no se convierte en Upper A';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '010';
+const SW_CACHE_LOCAL = '011';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
