@@ -13,11 +13,44 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<script>
+/* El tema se aplica aquí, antes de que se pinte nada. Si esperáramos a que
+   cargue el resto, la app aparecería un instante con los colores por omisión
+   y luego cambiaría de golpe. Por eso vive también en su propia llave de
+   almacenamiento y no solo dentro de la configuración. */
+(function(){
+  try{
+    var t = localStorage.getItem('gymDiary_tema_v2');
+    if(t && t !== 'verde' && ['orquidea','indigo'].indexOf(t) >= 0){
+      document.documentElement.setAttribute('data-tema', t);
+      var m = document.querySelector('meta[name="theme-color"]');
+      if(m) m.setAttribute('content', t === 'orquidea' ? '#120d18' : '#0e1020');
+    }
+  }catch(e){}
+})();
+</script>
 <style>
+/* Temas. Todo el color de la app sale de estas variables, así que cambiar de
+   tema es cambiar siete valores y nada más. --sobre-acc es el color del texto
+   que va ENCIMA del acento: sin él, un acento rosa se quedaría con la letra
+   verde oscura del tema original. */
 :root{
   --bg:#0f1c19; --card:#162622; --card2:#1c2f2a; --line:#2a423b;
   --ink:#e8f0ed; --dim:#8fa8a0; --acc:#4ecfa8; --acc2:#2f6a5e;
   --warn:#e8a33d; --bad:#e2674f; --good:#4ecfa8;
+  --sobre-acc:#08201a; --mm-dim:#3c574f;
+}
+html[data-tema="orquidea"]{
+  --bg:#120d18; --card:#1c1426; --card2:#241a30; --line:#3a2a4d;
+  --ink:#f2ebf7; --dim:#a892bd; --acc:#f472b6; --acc2:#7e3faa;
+  --warn:#e8a33d; --bad:#e2674f; --good:#c084fc;
+  --sobre-acc:#1a0620; --mm-dim:#4a3559;
+}
+html[data-tema="indigo"]{
+  --bg:#0e1020; --card:#171a2e; --card2:#1e2238; --line:#2e3454;
+  --ink:#e8eaf5; --dim:#9298bd; --acc:#818cf8; --acc2:#4c3fa8;
+  --warn:#e8a33d; --bad:#e2674f; --good:#818cf8;
+  --sobre-acc:#0a0a1a; --mm-dim:#3b4270;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);
@@ -34,7 +67,7 @@ nav{display:flex;gap:4px;overflow-x:auto;margin-bottom:22px;padding-bottom:4px}
 nav button{background:none;border:none;color:var(--dim);padding:9px 15px;border-radius:8px;
   font-size:14px;cursor:pointer;white-space:nowrap;font-family:inherit;font-weight:500}
 nav button:hover{color:var(--ink)}
-nav button.on{background:var(--acc);color:#08201a;font-weight:600}
+nav button.on{background:var(--acc);color:var(--sobre-acc);font-weight:600}
 
 .tab{display:none} .tab.on{display:block}
 
@@ -62,7 +95,7 @@ textarea{resize:vertical;min-height:60px}
 .r2{grid-template-columns:1fr 1fr} .r3{grid-template-columns:1fr 1fr 1fr} .r4{grid-template-columns:repeat(4,1fr)}
 @media(max-width:640px){.r3,.r4{grid-template-columns:1fr 1fr}}
 
-button.btn{background:var(--acc);color:#08201a;border:none;padding:11px 20px;border-radius:8px;
+button.btn{background:var(--acc);color:var(--sobre-acc);border:none;padding:11px 20px;border-radius:8px;
   font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
 button.btn:hover{filter:brightness(1.1)}
 button.gh{background:none;border:1px solid var(--line);color:var(--dim)}
@@ -84,7 +117,7 @@ tr:last-child td{border-bottom:none}
 .set{display:grid;grid-template-columns:26px 1fr 1fr .8fr 34px;gap:8px;align-items:center;margin-bottom:7px}
 .set span.n{color:var(--dim);font-size:12px;text-align:center}
 .set input{padding:11px 10px;font-size:16px}
-.set input.rir{background:rgba(78,207,168,.07);border-color:var(--acc2)}
+.set input.rir{background:color-mix(in srgb, var(--acc) 7%, transparent);border-color:var(--acc2)}
 .set button{background:none;border:none;color:var(--dim);cursor:pointer;font-size:17px;padding:0}
 .set button:hover{color:var(--bad)}
 .setlbl{display:grid;grid-template-columns:26px 1fr 1fr .8fr 34px;gap:8px;margin-bottom:5px}
@@ -170,7 +203,7 @@ tr:last-child td{border-bottom:none}
 .opt{display:block;background:var(--card2);border:1px solid var(--line);border-radius:10px;
   padding:13px 15px;cursor:pointer;transition:border-color .15s}
 .opt:hover{border-color:var(--acc2)}
-.opt.sel{border-color:var(--acc);background:rgba(78,207,168,.08)}
+.opt.sel{border-color:var(--acc);background:color-mix(in srgb, var(--acc) 8%, transparent)}
 .opt b{display:block;font-size:15px;margin-bottom:2px}
 .opt span{color:var(--dim);font-size:12.5px;line-height:1.5}
 .obwrap .err{color:var(--bad);font-size:13px;margin-top:10px;min-height:18px}
@@ -187,7 +220,7 @@ tr:last-child td{border-bottom:none}
 .authrow > div{flex:1;min-width:180px}
 
 .chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
-.c-ok{background:rgba(78,207,168,.15);color:var(--acc)}
+.c-ok{background:color-mix(in srgb, var(--acc) 15%, transparent);color:var(--acc)}
 .c-w{background:rgba(232,163,61,.15);color:var(--warn)}
 .c-b{background:rgba(226,103,79,.15);color:var(--bad)}
 
@@ -236,7 +269,7 @@ tr:last-child td{border-bottom:none}
 .lg i{display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:5px}
 .note{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.6}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(90px);
-  background:var(--acc);color:#08201a;padding:11px 22px;border-radius:99px;font-weight:600;
+  background:var(--acc);color:var(--sobre-acc);padding:11px 22px;border-radius:99px;font-weight:600;
   font-size:14px;transition:transform .28s;z-index:99}
 .toast.on{transform:translateX(-50%) translateY(0)}
 .pr{color:var(--acc);font-weight:600}
@@ -818,6 +851,17 @@ button.btn.sm{min-height:34px}
   </div>
 
   <div class="card">
+    <h2>Apariencia</h2>
+    <p class="sub">Elige con qué colores quieres ver la app. Se guarda en tu cuenta, así que
+      te sigue a cualquier dispositivo donde inicies sesión.</p>
+    <div class="opts" id="cfgTema">
+      <label class="opt" data-t="verde"><b>Bosque</b><span>Verde sobre negro. El de siempre.</span></label>
+      <label class="opt" data-t="orquidea"><b>Orquídea</b><span>Rosa y morado sobre negro.</span></label>
+      <label class="opt" data-t="indigo"><b>Índigo</b><span>Azul y violeta sobre negro.</span></label>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Tu programa de entrenamiento</h2>
     <p class="sub">Cambia cuántos días entrenas y qué quieres priorizar. Las rutinas se reasignan
       al momento y tu historial no se toca.</p>
@@ -1066,7 +1110,8 @@ const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],comidas:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, enfasis:'equilibrado', plan:null, alta:false, nado:false, propias:[],
+       cin0:96.5, dias:5, expMeses:18, enfasis:'equilibrado', tema:'verde',
+       plan:null, alta:false, nado:false, propias:[],
        owner:null}});   // de qué cuenta son estos datos
 
 let D = load();
@@ -1701,7 +1746,18 @@ function nut7(){
    qué músculo trabaja este ejercicio.
    Lienzo 100 x 132.
    ==================================================================== */
-const MM_DIM = '#3c574f', MM_ACC = '#4ecfa8';
+/* Los colores del mapa y de las gráficas se leen del tema activo en vez de ir
+   escritos a mano: si no, al cambiar de tema la app se quedaría medio verde.
+   El respaldo es el tema original, que es lo que vale cuando no hay CSS
+   resuelto (por ejemplo en las pruebas con jsdom). */
+function colorTema(nombre, respaldo){
+  try{
+    const v = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+    return v || respaldo;
+  }catch(e){ return respaldo; }
+}
+const MM_DIM = () => colorTema('--mm-dim', '#3c574f');
+const MM_ACC = () => colorTema('--acc', '#4ecfa8');
 
 /* Devuelve las dos mitades de una forma simétrica */
 const espejo = f => [f(1), f(-1)];
@@ -1745,7 +1801,7 @@ function mapaMuscularSVG(slug, alto){
   const marcadas = new Set((MM_INDICE[vista] || {})[grupo] || []);
   const piezas = siluetaFormas(vista).map((f, i) => {
     const on = marcadas.has(i);
-    return f.replace('/>', ` fill="${on ? MM_ACC : MM_DIM}" opacity="${on ? 1 : 0.45}"/>`);
+    return f.replace('/>', ` fill="${on ? MM_ACC() : MM_DIM()}" opacity="${on ? 1 : 0.45}"/>`);
   });
   return `<svg viewBox="0 0 100 132" style="width:100%;height:${alto||160}px;display:block" role="img"
       aria-label="Músculo trabajado: ${GRUPO_TXT[grupo]||grupo}">${piezas.join('')}
@@ -1798,7 +1854,7 @@ function verDiagrama(ei, slug){
     <div class="diaginfo"><h4>Puntos clave de técnica</h4>
       <ul>${tips.map(t=>`<li>${t}</li>`).join('')}</ul>
       <div class="diagleyenda">
-        <i style="background:#4ecfa8"></i>músculo que trabaja este ejercicio
+        <i style="background:var(--acc)"></i>músculo que trabaja este ejercicio
       </div>
     </div></div>`;
   caja.classList.add('on');
@@ -1911,7 +1967,7 @@ function renderCalificacion(){
   cals.forEach(({w,c}) => { const s = weekOf(w.date); (porSem[s] = porSem[s] || []).push(c.total); });
   const pts = Object.keys(porSem).map(k => [+k, porSem[k].reduce((a,b)=>a+b,0)/porSem[k].length])
                     .sort((a,b)=>a[0]-b[0]);
-  line('chCal', [{pts, color:'#4ecfa8'}], null);
+  line('chCal', [{pts, color:MM_ACC()}], null);
 }
 
 /* ====================================================================
@@ -2503,7 +2559,7 @@ function render(){
       const hito = p[4]==='pausa' ? 'Descanso metabólico'
                  : n===NS ? 'META · fotos'
                  : (n%4===0 ? 'Fotos y medidas' : '');
-      return `<tr${n===w?' style="background:rgba(78,207,168,.09)"':''}><td>${n}</td><td>${p[3]}</td><td>${p[2].toLocaleString('es-MX')}</td>
+      return `<tr${n===w?' style="background:color-mix(in srgb, var(--acc) 9%, transparent)"':''}><td>${n}</td><td>${p[3]}</td><td>${p[2].toLocaleString('es-MX')}</td>
       <td>${p[0].toFixed(1)}</td><td>${p[1]!=null?p[1].toFixed(1):'—'}</td><td class="pr">${hito}</td></tr>`}).join('');
 }
 function del(k,i){
@@ -2516,17 +2572,18 @@ function del(k,i){
 /* ============ GRÁFICAS SVG ============ */
 function line(svgId, series, yLab){
   const svg=document.getElementById(svgId); const W=800,H=230,P={t:16,r:14,b:26,l:42};
+  const TEXTO=colorTema('--dim','#8fa8a0'), REJILLA=colorTema('--line','#2a423b');
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.innerHTML='';
   const all=series.flatMap(s=>s.pts.map(p=>p[1])).filter(v=>v!=null);
-  if(!all.length){ svg.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#8fa8a0" font-size="14" text-anchor="middle">Sin datos todavía</text>`; return; }
+  if(!all.length){ svg.innerHTML=`<text x="${W/2}" y="${H/2}" fill="${TEXTO}" font-size="14" text-anchor="middle">Sin datos todavía</text>`; return; }
   let mn=Math.min(...all), mx=Math.max(...all); const pad=(mx-mn)*.15||1; mn-=pad; mx+=pad;
   const xs=series.flatMap(s=>s.pts.map(p=>p[0]));
   const x0=Math.min(...xs), x1=Math.max(...xs)||1;
   const X=v=>P.l+(v-x0)/((x1-x0)||1)*(W-P.l-P.r), Y=v=>P.t+(1-(v-mn)/(mx-mn))*(H-P.t-P.b);
   let g='';
   for(let i=0;i<=4;i++){ const v=mn+(mx-mn)*i/4, y=Y(v);
-    g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="#2a423b" stroke-width="1"/>
-        <text x="${P.l-7}" y="${y+4}" fill="#8fa8a0" font-size="11" text-anchor="end">${v.toFixed(1)}</text>`; }
+    g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="${REJILLA}" stroke-width="1"/>
+        <text x="${P.l-7}" y="${y+4}" fill="${TEXTO}" font-size="11" text-anchor="end">${v.toFixed(1)}</text>`; }
   series.forEach(s=>{
     const pts=s.pts.filter(p=>p[1]!=null);
     if(!pts.length) return;
@@ -2535,7 +2592,7 @@ function line(svgId, series, yLab){
     if(!s.dash) pts.forEach(p=>g+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.5" fill="${s.color}"/>`);
   });
   for(let i=0;i<=Math.min(6,x1-x0);i++){ const v=x0+Math.round((x1-x0)*i/Math.min(6,x1-x0||1));
-    g+=`<text x="${X(v)}" y="${H-8}" fill="#8fa8a0" font-size="11" text-anchor="middle">S${v}</text>`; }
+    g+=`<text x="${X(v)}" y="${H-8}" fill="${TEXTO}" font-size="11" text-anchor="middle">S${v}</text>`; }
   svg.innerHTML=g;
 }
 function weeklyAvgWeights(){
@@ -2543,19 +2600,19 @@ function weeklyAvgWeights(){
   return Object.keys(by).map(k=>[+k, by[k].reduce((a,b)=>a+b,0)/by[k].length]).sort((a,b)=>a[0]-b[0]);
 }
 function drawCharts(){
-  const PL=PLANV();
+  const PL=PLANV(), ACC=MM_ACC(), PLANC=colorTema('--dim','#8fa8a0');
   const real=weeklyAvgWeights(); const maxW=Math.max(curWeek(), real.length?real[real.length-1][0]:1);
   const planP=PL.slice(0,maxW).map((p,i)=>[i+1,p[0]]);
-  line('chPeso',[{pts:planP,color:'#8fa8a0',dash:1,w:2},{pts:real,color:'#4ecfa8'}]);
+  line('chPeso',[{pts:planP,color:PLANC,dash:1,w:2},{pts:real,color:ACC}]);
 
   const cin=D.measures.filter(m=>m.cin).map(m=>[weekOf(m.date),m.cin]);
   const maxC=Math.max(curWeek(), cin.length?cin[cin.length-1][0]:1);
   const planC=PL.slice(0,maxC).map((p,i)=>[i+1,p[1]]).filter(p=>p[1]!=null);
-  line('chCin',[{pts:planC,color:'#8fa8a0',dash:1,w:2},{pts:cin,color:'#4ecfa8'}]);
+  line('chCin',[{pts:planC,color:PLANC,dash:1,w:2},{pts:cin,color:ACC}]);
 
   const vb={}; D.workouts.forEach(w=>{const k=weekOf(w.date);
     vb[k]=(vb[k]||0)+w.sets.reduce((s,y)=>s+y.w*y.r,0)/1000;});
-  line('chVol',[{pts:Object.keys(vb).map(k=>[+k,vb[k]]).sort((a,b)=>a[0]-b[0]),color:'#4ecfa8'}]);
+  line('chVol',[{pts:Object.keys(vb).map(k=>[+k,vb[k]]).sort((a,b)=>a[0]-b[0]),color:ACC}]);
 
   dibujarNado();
 }
@@ -2586,7 +2643,7 @@ function dibujarNado(){
   const pts = Object.keys(porSem).map(k =>
     [+k, porSem[k].reduce((a,b)=>a+b,0) / porSem[k].length]).sort((a,b)=>a[0]-b[0]);
 
-  line('chNado', [{pts, color:'#4ecfa8'}]);
+  line('chNado', [{pts, color:MM_ACC()}]);
 
   const mmss = s => Math.floor(s/60) + ':' + String(Math.round(s%60)).padStart(2,'0');
   const ini = ints[0].seg, act = ints[ints.length-1].seg, dif = act - ini;
@@ -2630,6 +2687,51 @@ function saveCfg(){
   } else toast('Configuración guardada');
   save(); init();
 }
+/* ====================================================================
+   TEMAS
+
+   El tema se aplica poniendo un atributo en <html>; el resto lo hace el CSS.
+   Se guarda por separado en localStorage además de en la configuración,
+   porque hay que aplicarlo ANTES de que pinte nada: si esperáramos a cargar
+   los datos, la app aparecería un instante en verde y luego cambiaría.
+   ==================================================================== */
+const TEMAS = ['verde', 'orquidea', 'indigo'];
+const TEMA_KEY = 'gymDiary_tema_v2';
+const TEMA_META = { verde:'#0f1c19', orquidea:'#120d18', indigo:'#0e1020' };
+
+function aplicarTema(t){
+  const tema = TEMAS.includes(t) ? t : 'verde';
+  // El tema original es el valor por omisión del CSS: sin atributo.
+  if(tema === 'verde') document.documentElement.removeAttribute('data-tema');
+  else document.documentElement.setAttribute('data-tema', tema);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', TEMA_META[tema]);
+  try{ localStorage.setItem(TEMA_KEY, tema); }catch(e){}
+  return tema;
+}
+
+function elegirTema(t){
+  D.cfg.tema = aplicarTema(t);
+  save();
+  if(SB && SESSION) guardarPerfil();
+  pintarTema();
+  // Las gráficas llevan el color escrito dentro del SVG ya generado, así que
+  // hay que volver a dibujarlas. El formulario de Pesas NO se vuelve a pintar
+  // a propósito: renderExercises() lo reconstruye desde cero y se llevaría por
+  // delante lo que la persona estuviera capturando. El mapa muscular toma el
+  // color nuevo la próxima vez que se abre, que es suficiente.
+  drawCharts(); renderCalificacion();
+  toast('Tema aplicado');
+}
+
+function pintarTema(){
+  const caja = document.getElementById('cfgTema');
+  if(!caja) return;
+  const actual = TEMAS.includes(D.cfg.tema) ? D.cfg.tema : 'verde';
+  caja.querySelectorAll('.opt').forEach(o =>
+    o.classList.toggle('sel', o.dataset.t === actual));
+}
+
 /* Cambiar días o énfasis reasigna las rutinas, nada más. El historial no se
    toca: las sesiones ya registradas siguen apuntando a la rutina con la que
    se hicieron, aunque esa rutina ya no esté en el programa actual. */
@@ -2870,6 +2972,10 @@ async function loadProfile(){
   if(data.target_weight_kg)  D.cfg.wGoal  = +data.target_weight_kg;
   if(data.goal)              D.cfg.goal   = data.goal;
   if(data.training_days_per_week) D.cfg.dias = data.training_days_per_week;
+  if(data.training_emphasis) D.cfg.enfasis = data.training_emphasis;
+  // El tema viaja con la cuenta: si entras desde otro teléfono, lo encuentras
+  // como lo dejaste en vez de volver al de por omisión.
+  if(data.theme){ D.cfg.tema = data.theme; aplicarTema(data.theme); pintarTema(); }
   // La experiencia se guarda como fecha de inicio; aquí se vuelve a meses.
   // Sin esto, al entrar desde otro dispositivo la app creería que eres
   // principiante y escondería la sección de rutina propia.
@@ -3305,6 +3411,7 @@ async function guardarPerfil(){
   set('goal', c.goal);
   set('training_days_per_week', c.dias);
   set('training_emphasis', c.enfasis || 'equilibrado');
+  set('theme', c.tema || 'verde');
   if(n){
     set('plan_weeks', n);
     set('target_waist_cm', c.plan[n-1][1]);
@@ -3392,6 +3499,7 @@ function init(){
   document.getElementById('cfgW0').value=D.cfg.w0;
   document.getElementById('cfgConsent').checked=!!D.cfg.consent;
   pintarPrograma();
+  aplicarTema(D.cfg.tema); pintarTema();
 
   // Prellena el objetivo calórico de la semana según el plan vigente
   const PL=PLANV(), sem=Math.min(curWeek(), PL.length);
@@ -3408,6 +3516,8 @@ function init(){
 obOpciones('obGoals');
 obOpciones('obDias');
 document.getElementById('obEnfasis').addEventListener('change', function(){ this.dataset.tocado = '1'; });
+document.querySelectorAll('#cfgTema .opt').forEach(o =>
+  o.addEventListener('click', () => elegirTema(o.dataset.t)));
 rpSincronizar();
 init();
 quizaAlta();
@@ -3416,9 +3526,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.3.2 · arreglo: el historial ya no se convierte en Upper A';
+const APP_VER = 'v2.4.0 · temas de color';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '011';
+const SW_CACHE_LOCAL = '012';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
