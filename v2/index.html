@@ -756,6 +756,18 @@ button.btn.sm{min-height:34px}
     <svg class="chart" id="chVol"></svg>
   </div>
 
+  <div class="card" id="cardCardio">
+    <h2>Constancia en cardio</h2>
+    <p class="sub">Cuántas sesiones de cada semana llevaron cardio, contra cuántas entrenaste.
+      <b>Es constancia, no intensidad</b>: mide cuántas veces lo hiciste, no qué tan duro.</p>
+    <svg class="chart" id="chCardio"></svg>
+    <div class="lg"><span><i style="background:var(--acc)"></i>Sesiones con cardio</span><span><i style="background:var(--dim)"></i>Sesiones que entrenaste</span></div>
+    <div class="note" id="cardioResumen"></div>
+    <div class="note">El cardio no entra a ningún cálculo del modelo: no suma volumen, no aparece
+      en récords y no mueve la calificación de la sesión. Está aquí solo para que veas si lo
+      estás sosteniendo o te lo estás saltando.</div>
+  </div>
+
   <div class="card" id="cardNado" style="display:none">
     <h2>Ritmo de natación</h2>
     <p class="sub">Segundos por cada 100 m en las series de intervalos. <b>Hacia abajo es mejor</b>:
@@ -935,7 +947,47 @@ const ROUTINES = {
     ["Patada de glúteo en polea","3 × 15"],["Abductor","3 × 15"],["Pantorrilla","4 × 15"]]},
   acond:{name:"Sábado — Acondicionamiento", ex:[
     ["Burpees","4 × 15"],["Swing ruso","4 × 20"],["Sentadilla con salto","4 × 15"],
-    ["Escaladores","4 × 30"],["Desplantes","3 × 15"]]}
+    ["Escaladores","4 × 30"],["Desplantes","3 × 15"]]},
+
+  /* Programa «Glúteo y cintura»: seis días de tren inferior con abdomen y
+     cardio. El cardio se captura en minutos en el campo de repeticiones; la
+     base lo tiene marcado como cardio para que no cuente como carga. */
+  gcLun:{name:"Lunes — Pierna completa y abdomen", ex:[
+    ["Extensión de cuádriceps","4 × 8"],["Sentadilla hack","3 × 12"],["Peso muerto","2 × 10"],
+    ["Prensa","4 × 12"],["Aductor","3 × máx"],["Crunch abdominal","4 × 15"],
+    ["Cardio","1 × 20 min"]]},
+  gcMar:{name:"Martes — Jale y abdomen", ex:[
+    ["Jalón al pecho","4 × 10"],["Remo unilateral mancuerna","3 × 12"],["Remo alto abierto","4 × 12"],
+    ["Hiperextensión baja","2 × 20"],["Curl de bíceps con barra","3 × 10"],
+    ["Plancha","2 × 60 seg"],["Cardio","1 × 20 min"]]},
+  gcMie:{name:"Miércoles — Glúteo", ex:[
+    ["Empuje de cadera","4 × 10"],["Búlgaras","2 × 15"],["Patada de glúteo en polea","3 × 10"],
+    ["Step up","3 × 15"],["Pantorrilla","4 × 15"],["Russian twist","2 × máx"],
+    ["Cardio","1 × 20 min"]]},
+  gcJue:{name:"Jueves — Brazo completo", ex:[
+    ["Press militar con barra","2 × 10"],["Elevaciones laterales","3 × 15"],
+    ["Elevaciones frontales","4 × 10"],["Extensión de tríceps en polea","4 × 12"],
+    ["Curl predicador","2 × máx"],["Crunch abdominal en polea","3 × 10"],
+    ["Cardio","1 × 15 min"]]},
+  gcVie:{name:"Viernes — Femoral y glúteo", ex:[
+    ["Peso muerto","4 × 10"],["Sentadilla sumo","3 × 15"],["Abductor","2 × 20"],
+    ["Búlgaras","3 × 12"],["Desplantes","4 × 12"],["Elevación de piernas","4 × 5"],
+    ["Cardio","1 × 20 min"]]},
+  gcSab:{name:"Sábado — Empuje", ex:[
+    ["Press banca inclinado","4 × 8"],["Press militar con barra","2 × 10"],
+    ["Aperturas con mancuerna","3 × 12"],["Press francés","4 × 15"],
+    ["Elevaciones laterales","3 × 10"],["Cardio","1 × 20 min"]]}
+};
+
+/* Notas de la persona que armó cada día. Se muestran bajo el nombre de la
+   rutina en el formulario: son indicaciones de técnica, no datos. */
+const NOTA_RUTINA = {
+  gcLun:'Cardio en zona 2: el ritmo al que todavía puedes platicar sin que se te vaya el aire.',
+  gcMar:'La plancha en estrella de mar, hasta donde aguantes sin caerte.',
+  gcMie:'Cardio en elíptica o caminadora con inclinación 10 y velocidad 3.5.',
+  gcJue:'El cardio de hoy es zona 3: trota, no corras.',
+  gcVie:'En los desplantes, baja dos veces y avanza.',
+  gcSab:'Controla la bajada y empuja al subir.'
 };
 
 /* El circuito del sábado se registra como cualquier sesión, pero no es
@@ -963,7 +1015,8 @@ const PROGRAMAS = {
        inferior:   ['upperA','lowerA','upperB','lowerB','lowerC'] },
   6: { equilibrado:['upperA','lowerA','upperB','lowerB','upperC','acond'],
        superior:   ['upperA','lowerA','upperB','upperC','lowerB','acond'],
-       inferior:   ['upperA','lowerA','upperB','lowerB','lowerC','acond'] }
+       // Programa «Glúteo y cintura»: seis días completos con abdomen y cardio.
+       inferior:   ['gcLun','gcMar','gcMie','gcJue','gcVie','gcSab'] }
 };
 const CALENDARIO = {
   3: ['Lunes','Miércoles','Viernes'],
@@ -1022,13 +1075,78 @@ const EX_MAP = {
   "Posterior (pájaros)":["posterior-pajaros",0,2,"hombro","aislamiento",false],
   "Curl spider":["curl-spider",1,2,"biceps","aislamiento",false],
   "Press francés":["press-frances",1,2,"triceps","aislamiento",false],
-  "Trabajo de cuello":["trabajo-cuello",2,3,"cuello","aislamiento",false]
+  "Trabajo de cuello":["trabajo-cuello",2,3,"cuello","aislamiento",false],
+
+  /* Glúteo y acondicionamiento (migración 22). Estos faltaban aquí: sin su
+     entrada, slugOf() devuelve undefined, la subida no puede traducir la serie
+     y la sincronización de esa sesión falla entera. Todo ejercicio que aparezca
+     en ROUTINES tiene que estar en este mapa. */
+  "Empuje de cadera":["empuje-cadera",1,3,"gluteo","bisagra",true],
+  "Peso muerto rumano":["peso-muerto-rumano",1,3,"isquios","bisagra",true],
+  "Patada de glúteo en polea":["patada-gluteo-polea",0,2,"gluteo","aislamiento",false],
+  "Burpees":["burpees",0,2,"core","core",true],
+  "Sentadilla con salto":["sentadilla-con-salto",0,2,"cuadriceps","sentadilla",true],
+  "Escaladores":["escaladores",0,2,"core","core",true],
+  "Swing ruso":["swing-ruso",1,3,"gluteo","bisagra",true],
+
+  /* Programa Glúteo y cintura (migración 24) */
+  "Aductor":["aductor",0,1,"cuadriceps","aislamiento",false],
+  "Crunch abdominal":["crunch-abdominal",0,2,"core","core",false],
+  "Crunch abdominal en polea":["crunch-polea",0,2,"core","core",false],
+  "Plancha":["plancha",0,2,"core","core",false],
+  "Russian twist":["russian-twist",0,1,"core","core",false],
+  "Elevación de piernas":["elevacion-piernas",0,2,"core","core",false],
+  "Step up":["step-up",2,3,"gluteo","zancada",true],
+  "Sentadilla sumo":["sentadilla-sumo",0,2,"gluteo","sentadilla",true],
+  "Curl predicador":["curl-predicador",0,1,"biceps","aislamiento",false],
+  // El cardio se registra en minutos, no en kilos. Va marcado como tal en la
+  // base para que no entre al tonelaje ni al conjunto del modelo.
+  "Cardio":["cardio",2,3,"cardio","cardio",false]
 };
 const slugOf   = n => (EX_MAP[n]||[null])[0];
 const rirTgtOf = n => { const e=EX_MAP[n]; return e? [e[1],e[2]] : [1,3]; };
 const grupoOf  = n => (EX_MAP[n]||[])[3] || 'otro';
 const patronOf = n => (EX_MAP[n]||[])[4] || 'otro';
 const esCompuesto = n => !!(EX_MAP[n]||[])[5];
+
+/* ==================== CARDIO PARA TODOS ====================
+   El cardio es lo primero que se salta cuando no está escrito en ninguna
+   parte. Así que aparece al final de TODOS los días de fuerza, no solo en
+   el programa de glúteo, y se captura en minutos en el campo de reps.
+
+   Lo único que se mide de él es la constancia: cuántos días por semana se
+   hizo y cuántos minutos. NO entra a ningún cálculo —ni al volumen, ni a
+   los récords, ni a la calificación, ni al modelo—. Veinte minutos de
+   caminadora no tienen carga ni RIR: si entraran al tonelaje inflarían el
+   volumen semanal con trabajo que no es de fuerza, y si entraran al
+   promedio de 1RM lo hundirían a cero. La base los filtra en
+   v_working_sets por exercises.kind; aquí se filtran con esCardio() en
+   esos mismos puntos, para que las dos mitades cuenten lo mismo.
+
+   El sábado de acondicionamiento no lo lleva: ya es una sesión entera de
+   ese tipo. */
+const CARDIO_POR_OMISION = '1 × 15 min';
+Object.keys(ROUTINES).forEach(slug => {
+  const r = ROUTINES[slug];
+  if(esAcond(slug)) return;
+  if(r.ex.some(e => e[0] === 'Cardio')) return;   // los gc* ya lo traen con sus propios minutos
+  r.ex.push(['Cardio', CARDIO_POR_OMISION]);
+});
+
+/* Es cardio lo que el catálogo tiene en el grupo «cardio». Se pregunta por
+   nombre o por slug porque el historial viejo guarda solo el nombre. */
+const SLUGS_CARDIO = new Set(Object.keys(EX_MAP)
+  .filter(n => EX_MAP[n][3] === 'cardio').map(n => EX_MAP[n][0]));
+/* Declaradas como function y no como const a propósito: en un script
+   clásico las const no quedan en window y las pruebas no las alcanzan. */
+function esCardio(x){ return !!x && (SLUGS_CARDIO.has(x) || SLUGS_CARDIO.has(slugOf(x))); }
+function setCardio(s){ return esCardio(s.slug || s.ex); }
+/* Las series que sí son trabajo de fuerza: lo que miden todas las métricas */
+function seriesFuerza(w){ return (w.sets || []).filter(s => !setCardio(s)); }
+/* Los minutos de cardio de una sesión */
+function minutosCardio(w){
+  return (w.sets || []).filter(setCardio).reduce((a,s) => a + (+s.r || 0), 0);
+}
 
 const GRUPO_TXT = {pecho:'Pecho', espalda:'Espalda', hombro:'Hombro', cuadriceps:'Cuádriceps',
   isquios:'Isquiotibiales', gluteo:'Glúteo', pantorrilla:'Pantorrilla', biceps:'Bíceps',
@@ -1799,6 +1917,9 @@ function mapaMuscularSVG(slug, alto){
   const grupo = grupoOf(nombre);
   const vista = MM_VISTA[grupo] || 'frente';
   const marcadas = new Set((MM_INDICE[vista] || {})[grupo] || []);
+  // Si el grupo no corresponde a ningún músculo de la silueta —el cardio, por
+  // ejemplo— es mejor no ofrecer el diagrama que enseñar un muñeco apagado.
+  if(!marcadas.size) return null;
   const piezas = siluetaFormas(vista).map((f, i) => {
     const on = marcadas.has(i);
     return f.replace('/>', ` fill="${on ? MM_ACC() : MM_DIM()}" opacity="${on ? 1 : 0.45}"/>`);
@@ -1843,7 +1964,10 @@ const TECNICA = {
 
 function verDiagrama(ei, slug){
   const caja = document.getElementById('diag-' + ei);
-  const btn  = document.querySelector(`#exList .ex:nth-child(${ei+1}) .verdiag`);
+  // Se indexa sobre los .ex, no con :nth-child: la lista puede empezar con la
+  // nota de la rutina y entonces el hijo número ei+1 no sería el ejercicio ei.
+  const bloque = document.querySelectorAll('#exList .ex')[ei];
+  const btn  = bloque ? bloque.querySelector('.verdiag') : null;
   if(!caja) return;
   const abierto = caja.classList.contains('on');
   if(abierto){ caja.classList.remove('on'); caja.innerHTML=''; if(btn) btn.classList.remove('on'); return; }
@@ -1869,14 +1993,18 @@ function verDiagrama(ei, slug){
    ==================================================================== */
 const PESOS = {esfuerzo:40, progresion:25, registro:20, constancia:15};
 
-/* 1RM estimado medio de la sesión (Epley), sin series de calentamiento */
+/* 1RM estimado medio de la sesión (Epley), sin series de calentamiento.
+   Sin cardio tampoco: una serie de 20 minutos a 0 kg daría 1RM = 0 y
+   hundiría el promedio de la sesión entera. */
 function e1rmMedio(w){
-  const v = (w.sets||[]).filter(s=>s.r>0).map(s=>s.w*(1+s.r/30));
+  const v = seriesFuerza(w).filter(s=>s.r>0).map(s=>s.w*(1+s.r/30));
   return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0;
 }
 
 function calificar(w, previa){
-  const sets   = w.sets || [];
+  // Solo fuerza: el cardio no tiene ventana de RIR que cumplir ni carga
+  // que progrese, así que ni suma ni resta a la calificación.
+  const sets   = seriesFuerza(w);
   const conRir = sets.filter(s => s.rir != null);
   const dentro = conRir.filter(s => {
     const [mn,mx] = rirTgtOf(s.ex);
@@ -2080,7 +2208,9 @@ function rpGuardar(){
 /* -------------------- Diagnóstico -------------------- */
 function rpAnalizar(){
   const box = document.getElementById('rpDiag');
-  const todas = rpLista().map(r=>r.f.filter(f=>f.ex && EX_MAP[f.ex]));
+  // El cardio no cuenta como serie de nada: ni volumen por grupo, ni
+  // patrones, ni empuje contra jale. Se descarta antes de analizar.
+  const todas = rpLista().map(r=>r.f.filter(f=>f.ex && EX_MAP[f.ex] && !esCardio(f.ex)));
   const filas = todas[rpIdx] || [];
   if(!filas.length){ box.innerHTML='<div class="note" style="margin:0">Sin ejercicios que analizar todavía.</div>'; return; }
 
@@ -2113,7 +2243,8 @@ function rpAnalizar(){
   // Referencia del catálogo: series por sesión del programa que le tocaría
   const refSlug = programaDe({dias, enfasis: enfasisDe(D.cfg)}).filter(k => !esAcond(k));
   const refSeries = Math.round(refSlug.reduce((a,k)=>
-    a + (ROUTINES[k] ? ROUTINES[k].ex.reduce((b,e)=>b + (parseInt(e[1])||3), 0) : 0), 0) / refSlug.length);
+    a + (ROUTINES[k] ? ROUTINES[k].ex.filter(e=>!esCardio(e[0]))
+                                     .reduce((b,e)=>b + (parseInt(e[1])||3), 0) : 0), 0) / refSlug.length);
 
   const chip = (t,c) => `<span class="chip ${c}">${t}</span>`;
   const filasHTML = [];
@@ -2311,15 +2442,20 @@ function lastFor(exName){
 function renderExercises(){
   const r=document.getElementById('wRoutine').value, box=document.getElementById('exList');
   box.innerHTML='';
+  if(NOTA_RUTINA[r]) box.innerHTML =
+    `<div class="note" style="margin:0 0 12px">${textoSeguro(NOTA_RUTINA[r])}</div>`;
   ROUTINES[r].ex.forEach((e,ei)=>{
     const [nm,tgt]=e, last=lastFor(nm), [rMin,rMax]=rirTgtOf(nm);
+    const cardio = esCardio(nm);
     const d=document.createElement('div'); d.className='ex';
     const hayDiag = !!mapaMuscularSVG(slugOf(nm));
-    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt} · RIR ${rMin}-${rMax}`+
+    let h=`<div class="eh"><b>${nm}</b><span class="tgt">${tgt}${cardio?'':` · RIR ${rMin}-${rMax}`}`+
       (hayDiag? ` <button type="button" class="verdiag" onclick="verDiagrama(${ei},'${slugOf(nm)}')">ver</button>`:'')+
       `</span></div><div class="diagbox" id="diag-${ei}"></div>`;
+    if(cardio) h+=`<div class="last">Apunta los minutos. Solo cuenta para tu gráfica de
+      constancia: no entra al volumen, ni a los récords, ni a la calificación, ni al modelo.</div>`;
     if(last) h+=`<div class="last">Última vez (${fmt(last.date)}): ${last.sets.map(s=>
-      s.w+'kg × '+s.r+(s.rir!=null?' @'+s.rir:'')).join('  ·  ')}</div>`;
+      cardio ? s.r+' min' : s.w+'kg × '+s.r+(s.rir!=null?' @'+s.rir:'')).join('  ·  ')}</div>`;
     // La sugerencia del modelo, si ya se pidió. No se rellena sola: que el
     // número aparezca escrito invita a aceptarlo sin pensar.
     const sg = sugerenciaDe(slugOf(nm));
@@ -2327,32 +2463,53 @@ function renderExercises(){
       <b>${sg.sugerido} kg</b>${sg.cambio ? ` (${sg.cambio>0?'+':''}${sg.cambio})` : ' (igual)'}
       <button type="button" class="verdiag" onclick="usarSugerencia(${ei},${sg.sugerido})">usar</button></div>`;
     h+=`<div class="sets" id="sets-${ei}">
-          <div class="setlbl"><span></span><span>kg</span><span>reps</span><span class="rir">RIR</span><span></span></div>
+          <div class="setlbl"><span></span><span>${cardio?'—':'kg'}</span><span>${cardio?'min':'reps'}</span><span class="rir">${cardio?'—':'RIR'}</span><span></span></div>
         </div>
-        <div style="padding:0 13px 11px"><button class="btn gh sm" onclick="addSet(${ei})">+ Serie</button></div>`;
+        <div style="padding:0 13px 11px"><button class="btn gh sm" onclick="addSet(${ei})">+ ${cardio?'Bloque':'Serie'}</button></div>`;
     d.innerHTML=h; box.appendChild(d);
     const n=parseInt(tgt)||3; for(let i=0;i<n;i++) addSet(ei);
   });
 }
+/* El cardio se deduce de la rutina que está en pantalla, no de un parámetro:
+   así el restaurador del borrador y el botón «+ Serie» siguen llamando
+   addSet(ei) igual que siempre y aun así construyen la fila correcta. */
+function esCardioEn(ei){
+  const sel = document.getElementById('wRoutine');
+  const r = sel && ROUTINES[sel.value];
+  return !!(r && r.ex[ei] && esCardio(r.ex[ei][0]));
+}
 function addSet(ei){
   const c=document.getElementById('sets-'+ei), n=c.querySelectorAll('.set').length+1;
-  const row=document.createElement('div'); row.className='set';
-  row.innerHTML=`<span class="n">${n}</span>
-    <input type="number" inputmode="decimal" step="0.5" placeholder="kg" class="sw">
-    <input type="number" inputmode="numeric" placeholder="reps" class="sr">
-    <input type="number" inputmode="decimal" step="0.5" min="0" max="10" placeholder="RIR" class="rir">
-    <button onclick="this.parentNode.remove()">×</button>`;
+  const cardio=esCardioEn(ei);
+  const row=document.createElement('div'); row.className='set'+(cardio?' cardio':'');
+  row.innerHTML=`<span class="n">${n}</span>`+
+    (cardio
+      ? `<input type="number" class="sw" disabled placeholder="—" aria-label="el cardio no lleva peso">
+         <input type="number" inputmode="numeric" min="1" placeholder="min" class="sr">
+         <input type="number" class="rir" disabled placeholder="—" aria-label="el cardio no lleva RIR">`
+      : `<input type="number" inputmode="decimal" step="0.5" placeholder="kg" class="sw">
+         <input type="number" inputmode="numeric" placeholder="reps" class="sr">
+         <input type="number" inputmode="decimal" step="0.5" min="0" max="10" placeholder="RIR" class="rir">`)+
+    `<button onclick="this.parentNode.remove()">×</button>`;
   c.appendChild(row);
 }
 function saveWorkout(){
   const d=document.getElementById('wDate').value, r=document.getElementById('wRoutine').value;
   if(!d) return toast("Falta la fecha");
-  const sets=[]; let sinRir=0;
+  const sets=[]; let sinRir=0, minCardio=0;
   ROUTINES[r].ex.forEach((e,ei)=>{
+    const cardio = esCardio(e[0]);
     document.querySelectorAll('#sets-'+ei+' .set').forEach(row=>{
       const w=parseFloat(row.querySelector('.sw').value),
             rp=parseInt(row.querySelector('.sr').value),
             rirRaw=row.querySelector('.rir').value;
+      // El cardio se hace sin peso: si se le exigiera kg > 0 como al resto,
+      // la fila se descartaría siempre en silencio y la gráfica de
+      // constancia jamás tendría un punto.
+      if(cardio){
+        if(rp>0){ sets.push({ex:e[0],slug:slugOf(e[0]),w:0,r:rp,rir:null}); minCardio+=rp; }
+        return;
+      }
       if(w>0&&rp>0){
         // null a propósito si no se capturó: un dato faltante es mejor que uno inventado
         const rir = rirRaw==='' ? null : Math.min(10,Math.max(0,parseFloat(rirRaw)));
@@ -2371,8 +2528,12 @@ function saveWorkout(){
   save();
   limpiarBorrador();          // la sesión ya está guardada: el borrador sobra
   ['wNotes','wRpe','wDur'].forEach(i=>document.getElementById(i).value='');
-  renderExercises(); render(); renderCalificacion();
-  toast(sinRir ? `Guardada · ${sinRir} serie${sinRir>1?'s':''} sin RIR` : "Sesión guardada: "+sets.length+" series");
+  // drawCharts también: si no, la constancia en cardio se queda con el dato
+  // viejo hasta que abras la pestaña de Progreso.
+  renderExercises(); render(); renderCalificacion(); drawCharts();
+  const nFuerza = sets.length - sets.filter(setCardio).length;
+  toast(sinRir ? `Guardada · ${sinRir} serie${sinRir>1?'s':''} sin RIR`
+      : `Sesión guardada: ${nFuerza} series` + (minCardio ? ` y ${minCardio} min de cardio` : ''));
 }
 const e1rm=(w,r)=>w*(1+r/30);
 
@@ -2469,17 +2630,18 @@ function render(){
   document.getElementById('recent').innerHTML = rc.length
     ? '<div class="tw"><table><tr><th>Fecha</th><th>Rutina</th><th>Series</th><th>Volumen</th><th>Calif.</th></tr>'+
       rc.map(x=>{
-        const v = x.sets.reduce((s,y)=>s+y.w*y.r,0);
+        const sf = seriesFuerza(x);
+        const v = sf.reduce((s,y)=>s+y.w*y.r,0);
         const n = notaDe[(x.uid || x.date + x.routine)];
         const ch = n==null ? '<span class="chip c-n">—</span>'
                  : `<span class="chip ${JUICIO(n)[1]}">${n}</span>`;
         return `<tr><td>${fmt(x.date)}</td><td>${nombreRutina(x.routine)}</td>
-        <td>${x.sets.length}</td><td>${(v/1000).toFixed(1)} t</td><td>${ch}</td></tr>`}).join('')+'</table></div>'
+        <td>${sf.length}</td><td>${(v/1000).toFixed(1)} t</td><td>${ch}</td></tr>`}).join('')+'</table></div>'
     : '<div class="empty">Todavía no hay entrenamientos registrados.</div>';
 
-  // PRs
+  // PRs — sin cardio: no hay récord de peso en algo que se hace sin peso
   const prs={};
-  D.workouts.forEach(wk=>wk.sets.forEach(s=>{
+  D.workouts.forEach(wk=>seriesFuerza(wk).forEach(s=>{
     if(!prs[s.ex]) prs[s.ex]={w:0,rm:0,d:'',n:0};
     prs[s.ex].n++;
     if(s.w>prs[s.ex].w){prs[s.ex].w=s.w;prs[s.ex].d=wk.date;}
@@ -2495,7 +2657,7 @@ function render(){
   const wh=D.workouts.slice().reverse();
   document.getElementById('wHist').innerHTML = wh.length
     ? '<tr><th>Fecha</th><th>Sem</th><th>Rutina</th><th>Volumen</th><th>Notas</th><th></th></tr>'+
-      wh.map((x,i)=>{const v=x.sets.reduce((s,y)=>s+y.w*y.r,0); const idx=D.workouts.length-1-i;
+      wh.map((x,i)=>{const v=seriesFuerza(x).reduce((s,y)=>s+y.w*y.r,0); const idx=D.workouts.length-1-i;
       return `<tr><td>${fmt(x.date)}</td><td>${weekOf(x.date)}</td><td>${nombreRutina(x.routine)}</td>
       <td>${(v/1000).toFixed(2)} t</td><td style="color:var(--dim)">${x.notes||'—'}</td>
       <td><button class="btn gh sm" onclick="del('workouts',${idx})">borrar</button></td></tr>`}).join('')
@@ -2611,10 +2773,11 @@ function drawCharts(){
   line('chCin',[{pts:planC,color:PLANC,dash:1,w:2},{pts:cin,color:ACC}]);
 
   const vb={}; D.workouts.forEach(w=>{const k=weekOf(w.date);
-    vb[k]=(vb[k]||0)+w.sets.reduce((s,y)=>s+y.w*y.r,0)/1000;});
+    vb[k]=(vb[k]||0)+seriesFuerza(w).reduce((s,y)=>s+y.w*y.r,0)/1000;});
   line('chVol',[{pts:Object.keys(vb).map(k=>[+k,vb[k]]).sort((a,b)=>a[0]-b[0]),color:ACC}]);
 
   dibujarNado();
+  dibujarCardio();
 }
 
 /* El ritmo por 100 m en intervalos es el marcador de condición de quien nada:
@@ -2655,6 +2818,68 @@ function dibujarNado(){
        : dif > 0 ? `<b style="color:var(--warn)">${dif.toFixed(0)} s más lento</b>`
        : 'sin cambio') +
       ` · ${(metros/1000).toFixed(1)} km nadados en total`;
+}
+
+/* Constancia en cardio. No mide condición ni esfuerzo: mide si lo hiciste.
+   Se grafica contra el número de sesiones de la semana porque el dato que
+   importa no es «hice cardio dos veces», es «entrené cinco y lo hice dos».
+   Nada de esto toca el modelo: son las mismas series que v_working_sets
+   descarta por exercises.kind. */
+function dibujarCardio(){
+  const tarjeta = document.getElementById('cardCardio');
+  if(!tarjeta) return;
+  const resumen = document.getElementById('cardioResumen');
+
+  if(!D.workouts.length){
+    document.getElementById('chCardio').innerHTML = '';
+    resumen.textContent = 'Registra una sesión y aquí empieza a llenarse.';
+    return;
+  }
+
+  const entrenos = {}, conCardio = {};
+  D.workouts.forEach(w => {
+    const k = weekOf(w.date);
+    entrenos[k] = (entrenos[k] || 0) + 1;
+    if(minutosCardio(w) > 0) conCardio[k] = (conCardio[k] || 0) + 1;
+  });
+
+  // Todas las semanas entre la primera y la última, incluidas las de cero:
+  // un hueco tiene que verse como hueco, no desaparecer de la gráfica.
+  const sems = Object.keys(entrenos).map(Number).sort((a,b)=>a-b);
+  const ini = sems[0], fin = Math.max(sems[sems.length-1], curWeek());
+  const todas = [];
+  for(let s = ini; s <= fin; s++) todas.push(s);
+
+  line('chCardio', [
+    { pts: todas.map(s => [s, entrenos[s] || 0]), color: colorTema('--dim','#8fa8a0'), dash:1, w:2 },
+    { pts: todas.map(s => [s, conCardio[s] || 0]), color: MM_ACC() }
+  ]);
+
+  const totalSes = D.workouts.length;
+  const totalCar = D.workouts.filter(w => minutosCardio(w) > 0).length;
+  const totalMin = D.workouts.reduce((a,w) => a + minutosCardio(w), 0);
+
+  if(!totalCar){
+    resumen.innerHTML = `Llevas <b>${totalSes} sesión${totalSes>1?'es':''}</b> sin apuntar cardio.
+      Aparece al final de cada rutina: anota los minutos y la línea empieza a subir.`;
+    return;
+  }
+
+  // Racha: semanas seguidas, hacia atrás desde la última que entrenaste,
+  // en las que hubo cardio al menos una vez.
+  let racha = 0;
+  for(let s = fin; s >= ini; s--){
+    if(!entrenos[s]) continue;               // una semana sin entrenar no rompe la racha
+    if(conCardio[s]) racha++; else break;
+  }
+
+  const pct = Math.round(totalCar / totalSes * 100);
+  resumen.innerHTML =
+    `<b>${totalCar}</b> de ${totalSes} sesiones con cardio (<b>${pct}%</b>) · ` +
+    `${totalMin} minutos en total · ` +
+    (racha >= 2 ? `<b style="color:var(--acc)">${racha} semanas seguidas sin saltártelo</b>`
+     : racha === 1 ? 'la última semana que entrenaste sí lo hiciste'
+     : '<b style="color:var(--warn)">la última semana que entrenaste no hubo cardio</b>');
 }
 
 /* ============ DATOS ============ */
@@ -3526,9 +3751,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.4.0 · temas de color';
+const APP_VER = 'v2.6.0 · cardio en todos los días';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '012';
+const SW_CACHE_LOCAL = '014';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{

@@ -287,6 +287,28 @@ Las demás: `v_session_score`, `v_session_score_total`, `v_weekly_score`,
 `v_exercise_sessions`, `v_error_modelo`, `v_error_estimador`, y tres de
 administración (`v_admin_participantes`, `v_admin_progreso`, `v_admin_ejercicios`).
 
+`v_working_sets` es el punto único donde se decide qué cuenta como serie de
+trabajo: excluye calentamiento, sesiones de acondicionamiento y ejercicios de
+cardio (`exercises.kind = 'cardio'`). Toda vista que mida fuerza tiene que leer
+de ahí y no de `workout_sets`. Cuatro lo hacían mal —`v_weekly_volume`,
+`v_admin_progreso`, `v_admin_participantes` y `v_session_score`— y se corrigió
+en la migración 25: mientras el cardio existía en un solo programa casi no se
+notaba, pero al ponerlo en todos los días habría hundido el 1RM promedio con
+filas de 0 kg y bajado `pct_rir` sin que nadie registrara peor.
+
+### Cardio
+
+Desde la migración 25 todos los días de fuerza terminan con un bloque de
+cardio, capturado en minutos en el campo de repeticiones. Existe por una razón
+de adherencia, no de medición: escrito en la rutina se salta menos.
+
+**No entra a ningún cálculo.** Ni volumen, ni récords, ni calificación, ni
+conjunto de entrenamiento del modelo, ni predicciones. Lo único que se hace con
+él es contar cuántas sesiones por semana lo incluyeron, que es la gráfica de
+constancia en la pestaña de Progreso (`dibujarCardio()`). En la app el filtro es
+`esCardio()`; en la base, `exercises.kind`. Las dos mitades tienen que excluir
+lo mismo o el panel y el teléfono dan números distintos para la misma sesión.
+
 ### Seguridad
 
 - **RLS en todas las tablas de usuario.** Verificada bajo un JWT real
