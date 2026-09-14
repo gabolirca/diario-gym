@@ -3693,10 +3693,12 @@ async function guardarPerfil(){
   set('training_days_per_week', c.dias);
   set('training_emphasis', c.enfasis || 'equilibrado');
   set('theme', c.tema || 'verde');
-  if(n){
-    set('plan_weeks', n);
-    set('target_waist_cm', c.plan[n-1][1]);
-  }
+  /* Antes aquí se escribía target_waist_cm = última semana del plan, o sea
+     el valor ESTIMADO. Como al recargar ese número se leía de vuelta a
+     cfg.cinGoal, una estimación se convertía en meta declarada y a partir
+     de ahí el plan interpolaba hacia ella en lugar de volver a estimar.
+     La columna guarda la meta que la persona pidió, o nada. */
+  if(n) set('plan_weeks', n);
   if(c.expMeses !== undefined && c.expMeses !== null)
     set('training_since', new Date(Date.now() - c.expMeses*2629800000).toISOString().slice(0,10));
   pl.research_consent = !!c.consent;
@@ -3810,9 +3812,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.7.0 · meta de cintura propia';
+const APP_VER = 'v2.7.1 · meta de cintura propia';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '015';
+const SW_CACHE_LOCAL = '016';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
