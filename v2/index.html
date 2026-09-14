@@ -380,7 +380,11 @@ button.btn.sm{min-height:34px}
       <label class="opt" data-g="muscle_gain"><b>Ganar músculo</b><span>Superávit controlado. Subes de peso apuntando a que sea tejido magro.</span></label>
       <label class="opt" data-g="maintenance"><b>Mantener y ponerme fuerte</b><span>Sin cambio de peso. Solo progresar en cargas.</span></label>
     </div>
-    <div class="row" id="obMetaRow"><div><label>Peso al que quieres llegar (kg)</label><input type="number" inputmode="decimal" step="0.1" id="obMeta" placeholder="72"></div></div>
+    <div class="row r2" id="obMetaRow">
+      <div><label>Peso al que quieres llegar (kg)</label><input type="number" inputmode="decimal" step="0.1" id="obMeta" placeholder="72"></div>
+      <div><label>Cintura a la que quieres llegar (cm) · opcional</label><input type="number" inputmode="decimal" step="0.1" id="obCinMeta" placeholder="82"></div>
+    </div>
+    <div class="note">Si dejas la cintura en blanco, se estima a partir del peso que quieres perder o ganar. Es una aproximación gruesa: si tienes un número en mente, escríbelo y el plan lo respeta.</div>
     <div class="err" id="obErr3"></div>
     <div class="obnav"><button class="btn gh" onclick="obIr(2)">Atrás</button><button class="btn" onclick="obIr(4)">Continuar</button></div>
   </div>
@@ -860,6 +864,12 @@ button.btn.sm{min-height:34px}
       <div><label>Altura (cm)</label><input type="number" inputmode="decimal" id="cfgH" step="0.5" onchange="saveCfg()"></div>
       <div><label>Peso inicial (kg)</label><input type="number" inputmode="decimal" id="cfgW0" step="0.1" onchange="saveCfg()"></div>
     </div>
+    <div class="row r3">
+      <div><label>Cintura inicial (cm)</label><input type="number" inputmode="decimal" id="cfgCin0" step="0.1" placeholder="sin capturar" onchange="saveCfg()"></div>
+      <div><label>Cintura objetivo (cm)</label><input type="number" inputmode="decimal" id="cfgCinMeta" step="0.1" placeholder="se estima del peso" onchange="saveCfg()"></div>
+      <div><label>Peso objetivo (kg)</label><input type="number" inputmode="decimal" id="cfgWGoal" step="0.1" onchange="saveCfg()"></div>
+    </div>
+    <div class="note">Si cambias cualquiera de estos, la curva del plan y las calorías se recalculan. La cintura objetivo es opcional: en blanco se estima a partir del peso.</div>
   </div>
 
   <div class="card">
@@ -1187,15 +1197,31 @@ function generarPlan(c){
   }
   semanas = Math.min(26, Math.max(8, semanas));
 
-  // Cuánto baja la cintura por kg perdido. Aproximación gruesa, sirve de referencia.
-  const cmPorKg = c.sexo === 'F' ? 0.9 : 1.1;
-  const cin0 = +c.cin0 || null;
+  /* CINTURA. Si la persona dijo a qué cintura quiere llegar, el plan va de
+     su cintura de hoy a esa, en línea recta. Se respeta tal cual: es una
+     meta, no una predicción.
+
+     Si no la dijo, se estima a partir del peso, y la estimación es
+     ASIMÉTRICA a propósito. Perder peso sí adelgaza la cintura a un ritmo
+     parecido (≈1 cm por kg). Ganarlo no la engorda igual: en un superávit
+     bien llevado casi todo lo que sube es tejido magro. Con el mismo
+     coeficiente en los dos sentidos, a quien quería ganar 9 kg la app le
+     ponía como OBJETIVO una cintura 10 cm más grande — le decía que su
+     meta era tener más panza. Por eso, subiendo, la cintura se proyecta
+     casi plana, y nunca se muestra una cintura objetivo mayor que la de
+     hoy. */
+  const cin0    = +c.cin0 || null;
+  const cinMeta = +c.cinGoal || null;
+  const bajando = meta <= w0;
+  const cmPorKg = bajando ? (c.sexo === 'F' ? 0.9 : 1.1) : 0.2;
 
   const plan = [];
   for (let s = 1; s <= semanas; s++) {
     const t = s / semanas;
     const peso = +(w0 + (meta - w0) * t).toFixed(1);
-    const cin  = cin0 ? +(cin0 - (w0 - peso) * cmPorKg).toFixed(1) : null;
+    const cin  = !cin0 ? null
+               : cinMeta ? +(cin0 + (cinMeta - cin0) * t).toFixed(1)
+               : +(Math.min(cin0, cin0 - (w0 - peso) * cmPorKg)).toFixed(1);
 
     // Mifflin-St Jeor sobre el peso proyectado de esa semana
     const bmr  = 10*peso + 6.25*est - 5*edad + (c.sexo === 'F' ? -161 : 5);
@@ -1228,7 +1254,16 @@ const SUPA_KEY = "sb_publishable_wSWmaS791JkiAcH8cXmLyw_ONq-gUsK";
 const EMPTY = () => ({weights:[],measures:[],workouts:[],swims:[],sleep:[],nutrition:[],comidas:[],
   cfg:{start:"2026-08-03", height:166, w0:75.6, consent:false,
        nombre:"", sexo:"M", nac:null, goal:"recomp", wGoal:65.0,
-       cin0:96.5, dias:5, expMeses:18, enfasis:'equilibrado', tema:'verde',
+       /* cin0 y cinGoal arrancan vacíos A PROPÓSITO. Antes cin0 valía 96.5,
+          que es la cintura del autor, y cualquier participante al que le
+          faltara ese dato heredaba el cuerpo de otra persona: a una cuenta
+          con 87 cm reales el plan le puso 96 cm como punto de partida.
+          Un dato que no se capturó tiene que quedar vacío, nunca relleno
+          con el de alguien más. Ojo: start, height, w0 y wGoal siguen
+          teniendo los valores del autor porque el modo sin cuenta muestra
+          su diario; eso hay que separarlo, pero no sin poder correr las
+          pruebas. */
+       cin0:null, cinGoal:null, dias:5, expMeses:18, enfasis:'equilibrado', tema:'verde',
        plan:null, alta:false, nado:false, propias:[],
        owner:null}});   // de qué cuenta son estos datos
 
@@ -2901,12 +2936,18 @@ function importData(e){
   r.readAsText(f);
 }
 function saveCfg(){
-  const w0Antes=D.cfg.w0, hAntes=D.cfg.height;
+  const antes = [D.cfg.w0, D.cfg.height, D.cfg.wGoal, D.cfg.cin0, D.cfg.cinGoal].join('|');
+  const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
   D.cfg.start=document.getElementById('cfgStart').value||D.cfg.start;
-  D.cfg.height=parseFloat(document.getElementById('cfgH').value)||D.cfg.height;
-  D.cfg.w0=parseFloat(document.getElementById('cfgW0').value)||D.cfg.w0;
+  D.cfg.height=num('cfgH')||D.cfg.height;
+  D.cfg.w0=num('cfgW0')||D.cfg.w0;
+  D.cfg.wGoal=num('cfgWGoal')||D.cfg.wGoal;
+  // Estas dos sí se pueden dejar en blanco: vacío significa «no lo sé»,
+  // y un dato que no se sabe no se rellena con el de nadie más.
+  D.cfg.cin0=num('cfgCin0');
+  D.cfg.cinGoal=num('cfgCinMeta');
   // Si cambió el punto de partida, la curva y las calorías dejan de tener sentido
-  if(D.cfg.alta && (D.cfg.w0!==w0Antes || D.cfg.height!==hAntes)){
+  if(D.cfg.alta && [D.cfg.w0, D.cfg.height, D.cfg.wGoal, D.cfg.cin0, D.cfg.cinGoal].join('|') !== antes){
     D.cfg.plan = generarPlan(D.cfg);
     toast('Plan recalculado con los datos nuevos');
   } else toast('Configuración guardada');
@@ -3195,6 +3236,7 @@ async function loadProfile(){
   if(data.plan_start)        D.cfg.start  = data.plan_start;
   if(data.initial_weight_kg) D.cfg.w0     = +data.initial_weight_kg;
   if(data.target_weight_kg)  D.cfg.wGoal  = +data.target_weight_kg;
+  if(data.target_waist_cm)   D.cfg.cinGoal= +data.target_waist_cm;
   if(data.goal)              D.cfg.goal   = data.goal;
   if(data.training_days_per_week) D.cfg.dias = data.training_days_per_week;
   if(data.training_emphasis) D.cfg.enfasis = data.training_emphasis;
@@ -3411,6 +3453,13 @@ async function pullFromCloud(){
   }));
   ['weights','measures','sleep','nutrition','swims','workouts']
     .forEach(k=>D[k].sort((a,b)=>a.date<b.date?-1:1));
+  // La cintura de partida no vive en profiles. Si este dispositivo no la
+  // tiene, se toma de la primera medida registrada — nunca de un valor por
+  // omisión, que es justo lo que puso 96 cm en un plan de 87.
+  if(!D.cfg.cin0){
+    const primera = D.measures.find(m => m.cin);
+    if(primera) D.cfg.cin0 = primera.cin;
+  }
   save(true);
 }
 const num = v => (v===null||v===undefined||v==='')? null : +v;
@@ -3524,6 +3573,7 @@ function obCfg(){
     height: parseFloat(obEl('obEst').value),
     w0:     pes,
     cin0:   parseFloat(obEl('obCin').value) || null,
+    cinGoal: parseFloat(obEl('obCinMeta').value) || null,
     goal:   g,
     wGoal:  g==='maintenance' ? pes : parseFloat(obEl('obMeta').value),
     dias:   obDiasSel(),
@@ -3540,6 +3590,11 @@ function obResumen(){
     ['Objetivo', GOAL_TXT[c.goal]],
     ['Duración', plan.length+' semanas'],
     ['Peso', c.w0.toFixed(1)+' kg → '+fin[0].toFixed(1)+' kg'],
+    // La cintura se muestra ANTES de crear la cuenta: es el renglón que
+    // habría delatado que el plan partía de una cintura que no era la suya.
+    ['Cintura', c.cin0
+      ? c.cin0.toFixed(1)+' cm → '+(fin[1]!=null ? fin[1].toFixed(1)+' cm' : '—')
+      : 'no la capturaste'],
     ['Calorías al inicio', plan[0][2].toLocaleString('es-MX')+' kcal'],
     ['Proteína al día', Math.round(c.w0*1.9)+' g'],
     ['Entrenamiento', c.dias+' días por semana'],
@@ -3633,6 +3688,7 @@ async function guardarPerfil(){
   set('plan_start', c.start);
   set('initial_weight_kg', c.w0);
   set('target_weight_kg', c.wGoal);
+  set('target_waist_cm', c.cinGoal);
   set('goal', c.goal);
   set('training_days_per_week', c.dias);
   set('training_emphasis', c.enfasis || 'equilibrado');
@@ -3722,6 +3778,9 @@ function init(){
   document.getElementById('cfgStart').value=D.cfg.start;
   document.getElementById('cfgH').value=D.cfg.height;
   document.getElementById('cfgW0').value=D.cfg.w0;
+  document.getElementById('cfgWGoal').value=D.cfg.wGoal ?? '';
+  document.getElementById('cfgCin0').value=D.cfg.cin0 ?? '';
+  document.getElementById('cfgCinMeta').value=D.cfg.cinGoal ?? '';
   document.getElementById('cfgConsent').checked=!!D.cfg.consent;
   pintarPrograma();
   aplicarTema(D.cfg.tema); pintarTema();
@@ -3751,9 +3810,9 @@ initSupabase();
 /* ============ PWA ============ */
 /* Subir este número en cada publicación. Se muestra en Datos → Versión, así se puede
    saber a simple vista si el teléfono está viendo la copia vieja o la nueva. */
-const APP_VER = 'v2.6.0 · cardio en todos los días';
+const APP_VER = 'v2.7.0 · meta de cintura propia';
 /* Debe coincidir con el número de sw.js de esta misma publicación. */
-const SW_CACHE_LOCAL = '014';
+const SW_CACHE_LOCAL = '015';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
